@@ -1,0 +1,4 @@
+csegfold/build/
+output/
+__pycache__/
+*.pyc

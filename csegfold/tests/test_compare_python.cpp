@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "../../memory/json.hpp"
+#include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
 using namespace csegfold;

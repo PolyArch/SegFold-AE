@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cstdlib>
 #include <sys/stat.h>
-#include "../../memory/json.hpp"
+#include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
 namespace csegfold {

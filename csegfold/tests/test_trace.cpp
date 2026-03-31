@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
-#include "../../memory/json.hpp"
+#include "nlohmann/json.hpp"
 
 using namespace csegfold;
 using json = nlohmann::json;

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include <yaml-cpp/yaml.h>
-#include "../../memory/json.hpp"
+#include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
 

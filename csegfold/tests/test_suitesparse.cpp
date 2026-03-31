@@ -4,6 +4,7 @@
 #include "csegfold/simulator/segfoldSimulator.hpp"
 #include "test_utils.hpp"
 #include <fstream>
+#include <iostream>
 #include <vector>
 #include <string>
 
@@ -57,11 +58,18 @@ void test_tiling() {
 void test_suitesparse() {
 
     reset();
-    std::string root_dir = "/home/alice/github.com/JJxinruiwu/SegFold";
-    std::string config_file = root_dir + "/exp/config/test.yaml";
+    // Try multiple possible root paths (works from build/ or project root)
+    std::vector<std::string> possible_roots = {"../..", "..", "."};
+    std::string root_dir;
+    for (const auto& r : possible_roots) {
+        std::ifstream test_file(r + "/configs/baseline.yaml");
+        if (test_file.good()) { root_dir = r; break; }
+    }
+    if (root_dir.empty()) root_dir = "../..";
+    std::string config_file = root_dir + "/configs/baseline.yaml";
     load_cfg(config_file);
     // update_cfg({{"verbose", "true"}});
-    std::string mtx_dir = root_dir + "/benchmark/suitesparse";
+    std::string mtx_dir = root_dir + "/benchmarks/data/suitesparse";
     std::string matrix_name = "ca-GrQc";
     Matrix<int8_t> A = load_mtx_matrix(mtx_dir + "/" + matrix_name + "/" + matrix_name + ".mtx");
     Matrix<int8_t> B = load_mtx_matrix(mtx_dir + "/" + matrix_name + "/" + matrix_name + ".mtx");
