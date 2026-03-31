@@ -2,3 +2,5 @@ csegfold/build/
 output/
 __pycache__/
 *.pyc
+.cache/
+compile_commands.json
