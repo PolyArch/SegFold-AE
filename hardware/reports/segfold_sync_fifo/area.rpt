@@ -1,0 +1,47 @@
+ 
+****************************************
+Report : area
+Design : segfold_sync_fifo
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:04:02 2026
+****************************************
+
+Library(s) Used:
+
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+
+Number of ports:                          233
+Number of nets:                          2881
+Number of cells:                         2764
+Number of combinational cells:           1858
+Number of sequential cells:               906
+Number of macros/black boxes:               0
+Number of buf/inv:                        209
+Number of references:                      23
+
+Combinational area:                153.629462
+Buf/Inv area:                       10.351800
+Noncombinational area:             264.189590
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                   417.819052
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area          Local cell area
+                                  ------------------  --------------------------- 
+Hierarchical cell                 Absolute   Percent  Combi-    Noncombi-  Black-
+                                  Total      Total    national  national   boxes   Design
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+segfold_sync_fifo                  417.8191    100.0  153.6295   264.1896  0.0000  segfold_sync_fifo
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+Total                                                 153.6295   264.1896  0.0000
+
+1

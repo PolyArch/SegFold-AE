@@ -1,0 +1,47 @@
+ 
+****************************************
+Report : area
+Design : segfold_b_rows_rom
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:26:41 2026
+****************************************
+
+Library(s) Used:
+
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+
+Number of ports:                           35
+Number of nets:                          6336
+Number of cells:                         6309
+Number of combinational cells:           4261
+Number of sequential cells:              2048
+Number of macros/black boxes:               0
+Number of buf/inv:                        441
+Number of references:                      18
+
+Combinational area:                345.852184
+Buf/Inv area:                       21.753360
+Noncombinational area:             597.196777
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                   943.048962
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area          Local cell area
+                                  ------------------  --------------------------- 
+Hierarchical cell                 Absolute   Percent  Combi-    Noncombi-  Black-
+                                  Total      Total    national  national   boxes   Design
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+segfold_b_rows_rom                 943.0490    100.0  345.8522   597.1968  0.0000  segfold_b_rows_rom
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+Total                                                 345.8522   597.1968  0.0000
+
+1

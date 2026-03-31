@@ -1,0 +1,47 @@
+ 
+****************************************
+Report : area
+Design : segfold_intersect_rom
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:26:58 2026
+****************************************
+
+Library(s) Used:
+
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+
+Number of ports:                           51
+Number of nets:                         12056
+Number of cells:                        12021
+Number of combinational cells:           7925
+Number of sequential cells:              4096
+Number of macros/black boxes:               0
+Number of buf/inv:                        673
+Number of references:                      19
+
+Combinational area:                659.876228
+Buf/Inv area:                       35.283600
+Noncombinational area:            1194.393555
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                  1854.269783
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area          Local cell area
+                                  ------------------  --------------------------- 
+Hierarchical cell                 Absolute   Percent  Combi-    Noncombi-  Black-
+                                  Total      Total    national  national   boxes   Design
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+segfold_intersect_rom             1854.2698    100.0  659.8762  1194.3936  0.0000  segfold_intersect_rom
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+Total                                                 659.8762  1194.3936  0.0000
+
+1

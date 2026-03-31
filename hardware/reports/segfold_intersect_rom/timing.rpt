@@ -1,0 +1,409 @@
+Information: Updating design information... (UID-85)
+Warning: Design 'segfold_intersect_rom' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 10
+Design : segfold_intersect_rom
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:26:58 2026
+****************************************
+
+ # A fanout number of 1000 was used for high fanout net computations.
+
+Operating Conditions: PVT_0P7V_25C   Library: asap7sc7p5t_AO_RVT_TT_ccs_211120
+Wire Load Model Mode: top
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[1]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U10124/Y (AOI22xp33_ASAP7_75t_R)        29.06     516.48 f
+  U10127/Y (NAND4xp25_ASAP7_75t_R)        19.59     536.07 r
+  U10128/Y (NOR4xp25_ASAP7_75t_R)         15.38     551.46 f
+  U10151/Y (AO21x1_ASAP7_75t_R)           22.22     573.67 f
+  U10152/Y (A2O1A1Ixp33_ASAP7_75t_R)       9.65     583.32 r
+  U10153/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     599.82 f
+  U10154/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     612.10 r
+  rd_data_o[1] (out)                       0.00     612.10 r
+  data arrival time                                 612.10
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -612.10
+  -----------------------------------------------------------
+  slack (MET)                                        87.90
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[11]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U11890/Y (AOI22xp33_ASAP7_75t_R)        25.55     512.97 f
+  U11891/Y (NAND4xp25_ASAP7_75t_R)        21.82     534.80 r
+  U11892/Y (NOR4xp25_ASAP7_75t_R)         15.38     550.18 f
+  U11914/Y (AO21x1_ASAP7_75t_R)           22.22     572.40 f
+  U11915/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     582.99 r
+  U11916/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     599.49 f
+  U11917/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     611.77 r
+  rd_data_o[11] (out)                      0.00     611.77 r
+  data arrival time                                 611.77
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -611.77
+  -----------------------------------------------------------
+  slack (MET)                                        88.23
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[2]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U10330/Y (AOI22xp33_ASAP7_75t_R)        29.63     517.05 f
+  U10334/Y (NAND4xp25_ASAP7_75t_R)        18.02     535.07 r
+  U10341/Y (NOR4xp25_ASAP7_75t_R)         14.94     550.01 f
+  U10342/Y (AO21x1_ASAP7_75t_R)           21.25     571.26 f
+  U10343/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     581.85 r
+  U10344/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     598.35 f
+  U10345/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     610.64 r
+  rd_data_o[2] (out)                       0.00     610.64 r
+  data arrival time                                 610.64
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -610.64
+  -----------------------------------------------------------
+  slack (MET)                                        89.36
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[8]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U11372/Y (AOI22xp33_ASAP7_75t_R)        25.31     512.73 f
+  U11374/Y (NAND4xp25_ASAP7_75t_R)        20.70     533.43 r
+  U11375/Y (NOR4xp25_ASAP7_75t_R)         15.41     548.85 f
+  U11397/Y (AO21x1_ASAP7_75t_R)           22.23     571.07 f
+  U11398/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     581.66 r
+  U11399/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     598.16 f
+  U11400/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     610.45 r
+  rd_data_o[8] (out)                       0.00     610.45 r
+  data arrival time                                 610.45
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -610.45
+  -----------------------------------------------------------
+  slack (MET)                                        89.55
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[0]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U9929/Y (AOI22xp33_ASAP7_75t_R)         25.55     512.97 f
+  U9930/Y (NAND4xp25_ASAP7_75t_R)         21.49     534.46 r
+  U9952/Y (NOR4xp25_ASAP7_75t_R)          14.24     548.70 f
+  U9954/Y (AO21x1_ASAP7_75t_R)            21.24     569.94 f
+  U9955/Y (A2O1A1Ixp33_ASAP7_75t_R)       10.59     580.53 r
+  U9956/Y (O2A1O1Ixp33_ASAP7_75t_R)       16.50     597.03 f
+  U9957/Y (A2O1A1Ixp33_ASAP7_75t_R)       12.29     609.32 r
+  rd_data_o[0] (out)                       0.00     609.32 r
+  data arrival time                                 609.32
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -609.32
+  -----------------------------------------------------------
+  slack (MET)                                        90.68
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[4]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U10668/Y (AOI22xp33_ASAP7_75t_R)        25.31     512.73 f
+  U10670/Y (NAND4xp25_ASAP7_75t_R)        20.64     533.37 r
+  U10682/Y (NOR4xp25_ASAP7_75t_R)         14.18     547.55 f
+  U10704/Y (AO21x1_ASAP7_75t_R)           22.15     569.70 f
+  U10705/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     580.29 r
+  U10706/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     596.79 f
+  U10707/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     609.08 r
+  rd_data_o[4] (out)                       0.00     609.08 r
+  data arrival time                                 609.08
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -609.08
+  -----------------------------------------------------------
+  slack (MET)                                        90.92
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[12]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U12068/Y (AOI22xp33_ASAP7_75t_R)        25.55     512.97 f
+  U12069/Y (NAND4xp25_ASAP7_75t_R)        22.01     534.99 r
+  U12085/Y (NOR4xp25_ASAP7_75t_R)         13.46     548.45 f
+  U12086/Y (AO21x1_ASAP7_75t_R)           21.18     569.63 f
+  U12087/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     580.22 r
+  U12088/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     596.72 f
+  U12089/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     609.01 r
+  rd_data_o[12] (out)                      0.00     609.01 r
+  data arrival time                                 609.01
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -609.01
+  -----------------------------------------------------------
+  slack (MET)                                        90.99
+
+
+  Startpoint: rd_addr_i[5]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[7]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[5] (in)                        0.00     200.00 f
+  U9578/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9642/Y (NAND3xp33_ASAP7_75t_R)         41.24     277.81 f
+  U9648/Y (NOR2xp33_ASAP7_75t_R)          97.20     375.02 r
+  U10393/Y (HB1xp67_ASAP7_75t_R)         109.53     484.55 r
+  U11195/Y (AOI22xp33_ASAP7_75t_R)        26.32     510.87 f
+  U11197/Y (NAND4xp25_ASAP7_75t_R)        20.38     531.25 r
+  U11203/Y (NOR4xp25_ASAP7_75t_R)         14.97     546.22 f
+  U11225/Y (AO21x1_ASAP7_75t_R)           22.23     568.45 f
+  U11226/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     579.04 r
+  U11227/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     595.54 f
+  U11228/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     607.82 r
+  rd_data_o[7] (out)                       0.00     607.82 r
+  data arrival time                                 607.82
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -607.82
+  -----------------------------------------------------------
+  slack (MET)                                        92.18
+
+
+  Startpoint: rd_addr_i[5]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[13]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[5] (in)                        0.00     200.00 f
+  U9578/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9642/Y (NAND3xp33_ASAP7_75t_R)         41.24     277.81 f
+  U9648/Y (NOR2xp33_ASAP7_75t_R)          97.20     375.02 r
+  U10393/Y (HB1xp67_ASAP7_75t_R)         109.53     484.55 r
+  U12233/Y (AOI22xp33_ASAP7_75t_R)        26.32     510.87 f
+  U12235/Y (NAND4xp25_ASAP7_75t_R)        19.68     530.55 r
+  U12236/Y (NOR4xp25_ASAP7_75t_R)         15.34     545.89 f
+  U12258/Y (AO21x1_ASAP7_75t_R)           22.20     568.09 f
+  U12259/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     578.68 r
+  U12260/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     595.18 f
+  U12261/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     607.47 r
+  rd_data_o[13] (out)                      0.00     607.47 r
+  data arrival time                                 607.47
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -607.47
+  -----------------------------------------------------------
+  slack (MET)                                        92.53
+
+
+  Startpoint: rd_addr_i[1]
+              (input port clocked by clk)
+  Endpoint: rd_data_o[10]
+            (output port clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  clock clk (rise edge)                    0.00       0.00
+  clock network delay (ideal)              0.00       0.00
+  input external delay                   200.00     200.00 f
+  rd_addr_i[1] (in)                        0.00     200.00 f
+  U9571/Y (INVxp33_ASAP7_75t_R)           36.57     236.57 r
+  U9593/Y (NAND3xp33_ASAP7_75t_R)         46.09     282.66 f
+  U9713/Y (NOR2xp33_ASAP7_75t_R)          83.98     366.64 r
+  U9868/Y (HB1xp67_ASAP7_75t_R)          120.78     487.42 r
+  U11723/Y (AOI22xp33_ASAP7_75t_R)        25.31     512.73 f
+  U11725/Y (NAND4xp25_ASAP7_75t_R)        20.68     533.41 r
+  U11741/Y (NOR4xp25_ASAP7_75t_R)         13.37     546.78 f
+  U11742/Y (AO21x1_ASAP7_75t_R)           21.23     568.01 f
+  U11743/Y (A2O1A1Ixp33_ASAP7_75t_R)      10.59     578.61 r
+  U11744/Y (O2A1O1Ixp33_ASAP7_75t_R)      16.50     595.10 f
+  U11745/Y (A2O1A1Ixp33_ASAP7_75t_R)      12.29     607.39 r
+  rd_data_o[10] (out)                      0.00     607.39 r
+  data arrival time                                 607.39
+
+  clock clk (rise edge)                 1000.00    1000.00
+  clock network delay (ideal)              0.00    1000.00
+  clock uncertainty                     -100.00     900.00
+  output external delay                 -200.00     700.00
+  data required time                                700.00
+  -----------------------------------------------------------
+  data required time                                700.00
+  data arrival time                                -607.39
+  -----------------------------------------------------------
+  slack (MET)                                        92.61
+
+
+1

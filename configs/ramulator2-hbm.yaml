@@ -1,0 +1,28 @@
+Frontend:
+  impl: GEM5Frontend
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 1
+
+  DRAM:
+    impl: HBM
+    org:
+      preset: HBM_4Gb
+    timing:
+      preset: HBM_1Gbps
+
+  Controller:
+    impl: Generic
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+    RowPolicy:
+      impl: OpenRowPolicy
+
+  AddrMapper:
+    impl: RoBaRaCoCh
+
+  num_channels: 8
+  num_ranks: 1

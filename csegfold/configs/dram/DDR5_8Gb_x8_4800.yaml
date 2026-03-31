@@ -1,0 +1,38 @@
+# DDR5 8Gb x8 4800 MT/s Configuration for Ramulator2
+# Based on JEDEC DDR5 specification
+
+Frontend:
+  impl: SimpleO3
+  clock_ratio: 1
+  num_cores: 1
+  num_mcs: 1
+  max_outstanding: 64
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 1
+
+DRAM:
+  impl: DDR5
+  org:
+    preset: DDR5_8Gb_x8
+  timing:
+    preset: DDR5_4800AA
+  controller:
+    impl: Generic
+    scheduler:
+      impl: FRFCFS
+    refresh:
+      impl: SameBank
+    row_policy:
+      impl: OpenRowPolicy
+
+# Timing parameters (in nanoseconds at 4800 MT/s)
+# tCK = 0.417ns (4800 MT/s = 2400 MHz clock)
+# tRCD = 14.16ns (34 cycles)
+# tRP = 14.16ns (34 cycles)
+# tRAS = 32ns
+# tRC = 46.16ns
+# tCL = 34 cycles = 14.16ns
+# tWR = 30ns
+# tRFC1 = 295ns (8Gb, same bank refresh)

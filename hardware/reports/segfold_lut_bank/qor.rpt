@@ -1,0 +1,83 @@
+ 
+****************************************
+Report : qor
+Design : segfold_lut_bank
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:44:58 2026
+****************************************
+
+
+  Timing Path Group 'clk'
+  -----------------------------------
+  Levels of Logic:              30.00
+  Critical Path Length:        688.72
+  Critical Path Slack:           4.17
+  Critical Path Clk Period:   1000.00
+  Total Negative Slack:          0.00
+  No. of Violating Paths:        0.00
+  Worst Hold Violation:        -49.78
+  Total Hold Violation:     -13035.93
+  No. of Hold Violations:      336.00
+  -----------------------------------
+
+
+  Cell Count
+  -----------------------------------
+  Hierarchical Cell Count:          0
+  Hierarchical Port Count:          0
+  Leaf Cell Count:               2031
+  Buf/Inv Cell Count:             135
+  Buf Cell Count:                  35
+  Inv Cell Count:                 100
+  CT Buf/Inv Cell Count:            0
+  Combinational Cell Count:      1695
+  Sequential Cell Count:          336
+  Macro Count:                      0
+  -----------------------------------
+
+
+  Area
+  -----------------------------------
+  Combinational Area:      146.397779
+  Noncombinational Area:    97.977596
+  Buf/Inv Area:              6.502680
+  Total Buffer Area:             2.13
+  Total Inverter Area:           4.37
+  Macro/Black Box Area:      0.000000
+  Net Area:                  0.000000
+  -----------------------------------
+  Cell Area:               244.375375
+  Design Area:             244.375375
+
+
+  Design Rules
+  -----------------------------------
+  Total Number of Nets:          2072
+  Nets With Violations:             0
+  Max Trans Violations:             0
+  Max Cap Violations:               0
+  -----------------------------------
+
+
+  Hostname: lizhen
+
+  Compile CPU Statistics
+  -----------------------------------------
+  Resource Sharing:                    0.09
+  Logic Optimization:                  3.40
+  Mapping Optimization:                1.36
+  -----------------------------------------
+  Overall Compile Time:               44.05
+  Overall Compile Wall Clock Time:    44.91
+
+  --------------------------------------------------------------------
+
+  Design  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
+
+
+  Design (Hold)  WNS: 49.78  TNS: 13035.94  Number of Violating Paths: 336
+
+  --------------------------------------------------------------------
+
+
+1

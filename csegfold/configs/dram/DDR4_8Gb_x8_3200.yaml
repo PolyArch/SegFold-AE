@@ -1,0 +1,38 @@
+# DDR4 8Gb x8 3200 MT/s Configuration for Ramulator2
+# Based on JEDEC DDR4 specification
+
+Frontend:
+  impl: SimpleO3
+  clock_ratio: 1
+  num_cores: 1
+  num_mcs: 1
+  max_outstanding: 64
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 1
+
+DRAM:
+  impl: DDR4
+  org:
+    preset: DDR4_8Gb_x8
+  timing:
+    preset: DDR4_3200AA
+  controller:
+    impl: Generic
+    scheduler:
+      impl: FRFCFS
+    refresh:
+      impl: AllBank
+    row_policy:
+      impl: OpenRowPolicy
+
+# Timing parameters (in nanoseconds at 3200 MT/s)
+# tCK = 0.625ns (3200 MT/s = 1600 MHz clock)
+# tRCD = 13.75ns
+# tRP = 13.75ns
+# tRAS = 32ns
+# tRC = 45.75ns
+# tCL = 22 cycles = 13.75ns
+# tWR = 15ns
+# tRFC = 350ns (8Gb)

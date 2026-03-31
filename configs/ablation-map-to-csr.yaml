@@ -1,0 +1,59 @@
+# Core settings
+is_dense: False
+physical_pe_row_num: 16
+physical_pe_col_num: 16
+
+# Memory
+enable_multi_b_row_loading: True
+enable_b_row_reordering: True
+enable_dynamic_routing: False
+enable_partial_b_load: True
+b_loader_window_size: 32
+enable_b_v_contention: False
+enable_dynamic_scheduling: True
+enable_tile_eviction: True
+c_col_update_per_row: 4
+II: 0
+b_loader_row_limit: 16
+enable_offset: True
+
+# PE
+enable_sw_pe_fifo: True
+sw_pe_fifo_size: 16
+decouple_sw_and_pe: False
+decouple_sw_and_controller: False
+
+# General
+verbose: False
+very_verbose: False
+show_progress: False
+save_trace: False
+run_check: False
+max_cycle: 10000000
+
+# LUT
+use_lookup_table: True
+reverse_lookup_table: True
+max_updates_per_cycle: 4
+update_on_move: True
+update_with_round_robin: False
+
+# Matrix
+enable_decompose_a_row: True
+num_split: 1
+enable_dynamic_tiling: True
+
+# Memory hierarchy
+enable_memory_hierarchy: True
+use_external_memory: True
+enable_filter: True
+enable_outstanding_filter: True
+cache_line_size: 32
+
+# Spatial
+enable_spatial_folding: True
+max_push: 1
+mapper_request_limit_per_cycle: 16
+
+# Matrix
+enable_a_csc: True

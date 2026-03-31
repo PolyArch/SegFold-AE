@@ -1,0 +1,43 @@
+# HBM2 8Gb Configuration for Ramulator2
+# Based on JEDEC HBM2 specification
+
+Frontend:
+  impl: SimpleO3
+  clock_ratio: 1
+  num_cores: 1
+  num_mcs: 1
+  max_outstanding: 128  # Higher for HBM's wider interface
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 1
+
+DRAM:
+  impl: HBM2
+  org:
+    preset: HBM2_8Gb
+  timing:
+    preset: HBM2_2000
+  controller:
+    impl: Generic
+    scheduler:
+      impl: FRFCFS
+    refresh:
+      impl: AllBank
+    row_policy:
+      impl: OpenRowPolicy
+
+# Timing parameters (at 2000 MHz effective = 4000 MT/s per pin)
+# tCK = 1ns (1000 MHz actual clock, DDR)
+# tRCD = 14ns
+# tRP = 14ns
+# tRAS = 34ns
+# tRC = 48ns
+# tCL = 14 cycles
+# tWR = 16ns
+# tRFC = 260ns (8Gb)
+#
+# HBM2 features:
+# - 1024-bit wide interface (128 bytes per access)
+# - 8 independent channels
+# - High bandwidth: 256 GB/s per stack

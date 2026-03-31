@@ -1,0 +1,366 @@
+Information: Updating design information... (UID-85)
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 10
+Design : segfold_switch
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:03:56 2026
+****************************************
+
+Operating Conditions: PVT_0P7V_25C   Library: asap7sc7p5t_AO_RVT_TT_ccs_211120
+Wire Load Model Mode: top
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_row_r_reg[0]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U290/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U453/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_row_r_reg[0]/D (DFFHQNx1_ASAP7_75t_R)                 0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_row_r_reg[0]/CLK (DFFHQNx1_ASAP7_75t_R)               0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[14]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U435/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[14]/D (DFFHQNx1_ASAP7_75t_R)                  0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[14]/CLK (DFFHQNx1_ASAP7_75t_R)                0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[10]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U431/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[10]/D (DFFHQNx1_ASAP7_75t_R)                  0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[10]/CLK (DFFHQNx1_ASAP7_75t_R)                0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[9]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U430/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[9]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[9]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[6]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U427/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[6]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[6]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[5]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U290/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U426/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[5]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[5]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[3]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U424/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[3]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[3]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[0]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U421/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[0]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[0]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      8.37     908.37
+  data required time                                               908.37
+  --------------------------------------------------------------------------
+  data required time                                               908.37
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      182.73
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[4]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U280/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U425/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[4]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[4]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      9.14     909.14
+  data required time                                               909.14
+  --------------------------------------------------------------------------
+  data required time                                               909.14
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      183.51
+
+
+  Startpoint: b_load_valid_i
+              (input port clocked by clk)
+  Endpoint: b_n_r_reg[1]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  input external delay                                  200.00     200.00 r
+  b_load_valid_i (in)                                     0.00     200.00 r
+  U381/Y (OR3x1_ASAP7_75t_R)                             12.61     212.61 r
+  U278/Y (OAI21xp33_ASAP7_75t_R)                         78.74     291.35 f
+  U281/Y (HB1xp67_ASAP7_75t_R)                          121.68     413.04 f
+  U282/Y (NOR3xp33_ASAP7_75t_R)                         131.82     544.86 r
+  U290/Y (HB1xp67_ASAP7_75t_R)                          138.99     683.85 r
+  U422/Y (AOI222xp33_ASAP7_75t_R)                        41.78     725.63 f
+  b_n_r_reg[1]/D (DFFHQNx1_ASAP7_75t_R)                   0.00     725.63 f
+  data arrival time                                                725.63
+
+  clock clk (rise edge)                                1000.00    1000.00
+  clock network delay (ideal)                             0.00    1000.00
+  clock uncertainty                                    -100.00     900.00
+  b_n_r_reg[1]/CLK (DFFHQNx1_ASAP7_75t_R)                 0.00     900.00 r
+  library setup time                                      9.14     909.14
+  data required time                                               909.14
+  --------------------------------------------------------------------------
+  data required time                                               909.14
+  data arrival time                                               -725.63
+  --------------------------------------------------------------------------
+  slack (MET)                                                      183.51
+
+
+1

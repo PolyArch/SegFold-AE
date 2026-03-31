@@ -1,0 +1,109 @@
+# SegFold Configuration — 1MB Total Cache, HBM2 DRAM, 256 PEs
+# Based on exp/config/test.yaml + memory hierarchy for fair comparison
+# PE count: 16x16 = 256 (matches Spada's 32x8 = 256)
+# Cache: L1=1MB (single-level, no L2)
+
+# Core settings
+is_dense: False
+physical_pe_row_num: 16
+physical_pe_col_num: 16
+
+# Memory
+enable_multi_b_row_loading: True
+enable_b_row_reordering: True
+b_row_scheduling: sorted
+enable_dynamic_routing: True
+enable_partial_b_load: True
+b_loader_window_size: 32
+enable_b_v_contention: False
+enable_dynamic_scheduling: True
+enable_tile_eviction: True
+c_col_update_per_row: 4
+II: 0
+b_loader_row_limit: 4
+enable_offset: False
+
+# PE
+enable_sw_pe_fifo: True
+sw_pe_fifo_size: 16
+decouple_sw_and_pe: False
+decouple_sw_and_controller: False
+
+# Timing
+num_cycles_load_a: 2
+num_cycles_load_b: 0
+num_cycles_store_c: 0
+num_cycles_mult_ii: 1
+num_cycles_memory_check: 4
+# When True, A loads bypass MSHR/Cache/DRAM (like Spada) and use num_cycles_load_a latency.
+# When False, A loads go through full memory hierarchy (cache pollution + DRAM bandwidth).
+bypass_a_memory_hierarchy: True
+
+# B Loader FIFO
+enable_b_loader_fifo: True
+b_loader_fifo_size: 16
+enable_spad: True
+spad_load_ports_per_bank: 1
+spad_store_ports_per_bank: 1
+
+# General
+verbose: False
+very_verbose: False
+show_progress: False
+save_trace: False
+save_stats_trace: False
+run_check: True
+max_cycle: 10000000
+
+# LUT
+use_lookup_table: True
+reverse_lookup_table: True
+max_updates_per_cycle: 4
+update_on_move: True
+update_with_round_robin: False
+
+# Matrix
+enable_decompose_a_row: False
+num_split: 1
+enable_dynamic_tiling: True
+tile_c_multiplier: 1.0
+enable_a_csc: True
+
+# Memory hierarchy — Ramulator2 HBM2
+enable_memory_hierarchy: True
+use_external_memory: True
+enable_filter: True
+enable_outstanding_filter: True
+cache_line_size: 128
+memory_backend_type: "ramulator2"
+dram_config_file: "configs/ramulator2-hbm.yaml"
+
+# L1 Cache: 1 MB (single-level, matches Spada's 1MB fiber cache)
+l1_size_kb: 1536
+l1_associativity: 16
+l1_line_size: 128
+l1_latency: 1
+
+# L2 Cache: disabled (size 0 = passthrough)
+l2_size_kb: 0
+l2_associativity: 1
+l2_line_size: 128
+l2_latency: 0
+
+# Fallback DRAM Latency
+ideal_dram_latency: 100
+
+# Element size in bytes (each nonzero occupies this many bytes in address space)
+element_size: 4
+
+# Memory Address Offsets (-1 = auto-compute from nnz, like Python gen_offset)
+a_pointer_offset: -1
+b_pointer_offset: -1
+c_pointer_offset: -1
+
+# Spatial folding
+enable_spatial_folding: True
+max_push: 1
+mapper_request_limit_per_cycle: 16
+enable_tile_pipeline: True
+fast_eviction: True

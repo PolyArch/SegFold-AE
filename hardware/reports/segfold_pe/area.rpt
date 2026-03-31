@@ -1,0 +1,47 @@
+ 
+****************************************
+Report : area
+Design : segfold_pe
+Version: O-2018.06-SP1
+Date   : Wed Feb 18 12:13:01 2026
+****************************************
+
+Library(s) Used:
+
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+
+Number of ports:                          356
+Number of nets:                           935
+Number of cells:                          777
+Number of combinational cells:            601
+Number of sequential cells:               176
+Number of macros/black boxes:               0
+Number of buf/inv:                        104
+Number of references:                      41
+
+Combinational area:                 53.027460
+Buf/Inv area:                        4.840560
+Noncombinational area:              51.321598
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (No wire load specified)
+
+Total cell area:                   104.349058
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area          Local cell area
+                                  ------------------  --------------------------- 
+Hierarchical cell                 Absolute   Percent  Combi-    Noncombi-  Black-
+                                  Total      Total    national  national   boxes   Design
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+segfold_pe                         104.3491    100.0   53.0275    51.3216  0.0000  segfold_pe
+--------------------------------  ---------  -------  --------  ---------  ------  ---------
+Total                                                  53.0275    51.3216  0.0000
+
+1
