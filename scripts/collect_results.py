@@ -118,7 +118,12 @@ def collect(output_dir: Path):
     suitesparse_rows = []
     ablation_rows = []
 
-    stats_files = sorted(output_dir.rglob("*_stats.json"))
+    # Skip paper experiment directories (handled by collect_paper_results)
+    paper_dirs = {"overall", "nonsquare", "breakdown"}
+    stats_files = sorted(
+        f for f in output_dir.rglob("*_stats.json")
+        if not any(p in f.relative_to(output_dir).parts for p in paper_dirs)
+    )
     if not stats_files:
         print(f"No *_stats.json files found under {output_dir}")
         return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -251,6 +256,105 @@ def print_summary(df_syn: pd.DataFrame, df_ss: pd.DataFrame, df_abl: pd.DataFram
 
 
 # ---------------------------------------------------------------------------
+# Paper experiment collector (overall, nonsquare, breakdown)
+# ---------------------------------------------------------------------------
+
+EXPERIMENT_DIRS = {"overall", "nonsquare", "suitesparse"}
+
+def collect_experiment_dir(exp_dir: Path) -> pd.DataFrame:
+    """Collect all stats from a flat experiment directory (overall/ or nonsquare/)."""
+    rows = []
+    for fpath in sorted(exp_dir.glob("*_stats.json")):
+        stats = load_stats(fpath)
+        if not stats:
+            continue
+        m = SUITESPARSE_SIM_RE.match(fpath.name)
+        if m:
+            row = extract_stats(stats)
+            row["matrix"] = m.group(1)
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def collect_breakdown_dir(breakdown_dir: Path) -> pd.DataFrame:
+    """Collect stats from breakdown/{config}/sim_{matrix}_stats.json."""
+    rows = []
+    for config_dir in sorted(breakdown_dir.iterdir()):
+        if not config_dir.is_dir():
+            continue
+        config_name = config_dir.name
+        for fpath in sorted(config_dir.glob("*_stats.json")):
+            stats = load_stats(fpath)
+            if not stats:
+                continue
+            m = SUITESPARSE_SIM_RE.match(fpath.name)
+            if m:
+                row = extract_stats(stats)
+                row["matrix"] = m.group(1)
+                row["config"] = config_name
+                rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def collect_paper_results(output_dir: Path):
+    """Collect results for paper experiments: overall, nonsquare, breakdown."""
+    written = []
+
+    # Overall performance
+    overall_dir = output_dir / "overall"
+    if overall_dir.is_dir():
+        df = collect_experiment_dir(overall_dir)
+        if not df.empty:
+            out_path = output_dir / "overall_results.csv"
+            df.to_csv(out_path, index=False)
+            written.append(out_path)
+            print(f"Wrote {len(df)} rows -> {out_path}")
+
+    # Non-square performance
+    nonsquare_dir = output_dir / "nonsquare"
+    if nonsquare_dir.is_dir():
+        df = collect_experiment_dir(nonsquare_dir)
+        if not df.empty:
+            out_path = output_dir / "nonsquare_results.csv"
+            df.to_csv(out_path, index=False)
+            written.append(out_path)
+            print(f"Wrote {len(df)} rows -> {out_path}")
+
+    # Breakdown (incremental ablation)
+    breakdown_dir = output_dir / "breakdown"
+    if breakdown_dir.is_dir():
+        df = collect_breakdown_dir(breakdown_dir)
+        if not df.empty:
+            # Pivot: one row per matrix, columns = config cycles
+            config_order = [
+                "breakdown-base", "breakdown-plus-tiling",
+                "breakdown-plus-folding", "breakdown-plus-dynmap", "segfold",
+            ]
+            pivot = df.pivot_table(
+                index="matrix", columns="config", values="cycle", aggfunc="first"
+            )
+            # Reorder columns to match incremental order
+            ordered_cols = [c for c in config_order if c in pivot.columns]
+            pivot = pivot[ordered_cols].reset_index()
+            # Rename columns for readability
+            col_map = {
+                "breakdown-base": "base_cycles",
+                "breakdown-plus-tiling": "+tiling_cycles",
+                "breakdown-plus-folding": "+folding_cycles",
+                "breakdown-plus-dynmap": "+dynmap_cycles",
+                "segfold": "full_cycles",
+            }
+            pivot.rename(columns=col_map, inplace=True)
+
+            out_path = output_dir / "breakdown_results.csv"
+            pivot.to_csv(out_path, index=False)
+            written.append(out_path)
+            print(f"Wrote {len(pivot)} rows -> {out_path}")
+
+    return written
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -270,10 +374,13 @@ def main():
         print(f"Error: {output_dir} is not a directory", file=sys.stderr)
         sys.exit(1)
 
-    df_syn, df_ss, df_abl = collect(output_dir)
-
-    # ---- Write CSVs ----
     written = []
+
+    # Collect paper experiment results (overall, nonsquare, breakdown)
+    written += collect_paper_results(output_dir)
+
+    # Also collect legacy experiment results (synthetic, suitesparse, ablation)
+    df_syn, df_ss, df_abl = collect(output_dir)
 
     if not df_syn.empty:
         out_path = output_dir / "synthetic_results.csv"

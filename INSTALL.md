@@ -3,11 +3,12 @@
 ## System Requirements
 
 - **OS**: Ubuntu 22.04+ (tested), other Linux distributions should also work
-- **Compiler**: GCC 11+ (C++20 support required)
+- **Compiler**: GCC 10+ (C++20 support required)
 - **Build system**: CMake 3.15+
-- **Python**: 3.10+
+- **Python**: 3.8+
 - **RAM**: 8 GB minimum, 16 GB recommended (see RAM requirements below)
 - **Disk**: ~500 MB for source + benchmarks, ~2 GB for full experiment outputs
+- **Internet**: Required during build (Ramulator2 fetched via CMake) and for downloading SuiteSparse matrices
 
 ## Dependencies
 
@@ -15,47 +16,48 @@
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake g++ git python3 python3-pip
+sudo apt-get install -y build-essential cmake g++ git python3 python3-pip curl
 ```
 
 ### Python packages
 
 ```bash
-pip3 install numpy scipy matplotlib pyyaml pandas
+pip install -r requirements.txt
 ```
+
+This installs: numpy, scipy, matplotlib, pandas, pyyaml.
+
+> **Note:** Only the plotting and result collection scripts need these packages. The experiment runner scripts and the C++ simulator have no Python package dependencies.
 
 ## Building from Source
 
-### Quick build
+### Quick build (recommended)
 
 ```bash
 ./scripts/setup.sh
 ```
 
-This script checks all dependencies, builds the simulator, and runs a smoke test.
+This script:
+1. Checks all system dependencies (CMake, `g++`, Python)
+2. Installs Python packages from `requirements.txt`
+3. Builds the C++ simulator with Ramulator2 HBM2 DRAM backend
+4. Runs a smoke test to verify the build
 
 ### Manual build
 
 ```bash
 cd csegfold
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=ON
 make -j$(nproc)
 ```
 
-The build produces two executables in `csegfold/build/`:
-- `csegfold` — main simulator
-- `ablation_runner` — experiment runner for sweeps and ablation studies
+> **Note:** Ramulator2 is required for the paper experiments (HBM2 DRAM modeling). CMake will automatically fetch it via FetchContent during the first build, which requires an internet connection.
 
-### Build with Ramulator2 (optional)
-
-To enable DRAM simulation with Ramulator2:
-
-```bash
-cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=ON
-```
-
-Note: Ramulator2 requires an active internet connection during build (fetched via CMake FetchContent).
+The build produces the main executable `csegfold/build/csegfold`, which supports:
+- `--mtx-file <path>` — load a SuiteSparse .mtx file (CSR-only, memory-efficient)
+- `--matrix-file <path>` — load a pre-generated binary matrix file
+- Synthetic matrix generation via `--M`, `--K`, `--N`, `--density-a`, `--density-b`
 
 ## Docker
 
@@ -75,40 +77,46 @@ docker run --memory=16g -v $(pwd)/output:/workspace/segfold/output segfold-artif
 
 ## RAM Requirements
 
-Each simulation process allocates ~28 x S^2 bytes of dense storage, where S is the matrix dimension. Multiple processes run in parallel controlled by `MAX_JOBS`.
+The simulator uses CSR (Compressed Sparse Row) format via `--mtx-file`, so memory usage scales with the number of nonzeros (nnz), not the full matrix dimensions. This makes even large matrices like ca-CondMat (23,133 x 23,133) feasible on modest hardware.
 
-| Matrix Size | Per Process | MAX_JOBS=4 | MAX_JOBS=8 |
-|-------------|-------------|------------|------------|
-| 256x256     | ~80 MB      | ~320 MB    | ~640 MB    |
-| 512x512     | ~524 MB     | ~2.1 GB   | ~4.2 GB    |
-| 1024x1024   | ~3.5 GB     | ~14 GB    | ~28 GB     |
-| 5000x5000   | ~3.3 GB     | ~13 GB    | ~26 GB     |
+Typical memory usage per simulation:
 
-**SuiteSparse matrices**: Memory depends on the matrix dimensions (not sparsity), because the simulator converts to dense internally. Matrices up to ~10,000 rows are supported. The `ckt11752_dc_1` (49,702 x 49,702) and `bcsstk17` (10,974 x 10,974) matrices are excluded from the default sweep.
+| Matrix | Dimensions | NNZ | Peak RAM |
+|--------|-----------|-----|----------|
+| bcspwr06 | 1,454 x 1,454 | 5,300 | ~250 MB |
+| rdb5000 | 5,000 x 5,000 | 29,600 | ~3.5 GB |
+| fv1 | 9,604 x 9,604 | 85,264 | ~13 GB |
+| ca-CondMat | 23,133 x 23,133 | 186,936 | ~20 GB |
 
-**Recommendation**: Set `MAX_JOBS` based on your available RAM. The scripts auto-detect RAM and set a safe default. Override with `--jobs N`:
+**Recommendation**: Set `--jobs` based on your available RAM:
 
 ```bash
-./scripts/run_all.sh --jobs 2    # For 8 GB machines
-./scripts/run_all.sh --jobs 4    # For 16 GB machines (default)
-./scripts/run_all.sh --jobs 8    # For 32+ GB machines
+./scripts/run_all.sh --jobs 2    # For 16 GB machines
+./scripts/run_all.sh --jobs 4    # For 32 GB machines
+./scripts/run_all.sh --jobs 8    # For 64+ GB machines
 ```
+
+## Downloading Benchmark Matrices
+
+```bash
+python3 scripts/download_matrices.py
+```
+
+Downloads 21 SuiteSparse matrices (~50 MB total) from https://sparse.tamu.edu/. Already-downloaded matrices are skipped.
 
 ## Verification
 
 After building, verify the installation:
 
 ```bash
-# Quick smoke test (< 5 seconds)
-./csegfold/build/ablation_runner \
-    --config configs/baseline.yaml \
-    --out_dir /tmp/test \
-    --size 48 --densityA 0.5 --densityB 0.5 --random_state 1
+# Quick smoke test with synthetic matrix (< 5 seconds)
+./csegfold/build/csegfold \
+    --config configs/segfold.yaml \
+    --M 48 --K 48 --N 48 \
+    --density-a 0.5 --density-b 0.5 --seed 1
 
-# SuiteSparse smoke test
-./csegfold/build/ablation_runner \
-    --config configs/baseline.yaml \
-    --out_dir /tmp/test \
-    --suitesparse --matrix bcsstk01 \
-    --matrix_dir benchmarks/data/suitesparse
+# SuiteSparse smoke test (requires download_matrices.py first)
+./csegfold/build/csegfold \
+    --config configs/segfold.yaml \
+    --mtx-file benchmarks/data/suitesparse/bcspwr06/bcspwr06.mtx
 ```

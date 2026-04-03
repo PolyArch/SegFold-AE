@@ -48,6 +48,13 @@ if ! command -v python3 &>/dev/null; then
 fi
 echo "  python3 $(python3 --version 2>&1 | awk '{print $2}') ... OK"
 
+# Auto-install from requirements.txt if present
+REQ_FILE="$PROJECT_ROOT/requirements.txt"
+if [ -f "$REQ_FILE" ]; then
+    echo "  Installing Python dependencies from requirements.txt ..."
+    python3 -m pip install --quiet -r "$REQ_FILE"
+fi
+
 PYTHON_PACKAGES=(numpy scipy matplotlib pyyaml pandas)
 for pkg in "${PYTHON_PACKAGES[@]}"; do
     # pyyaml is imported as 'yaml'
@@ -56,7 +63,8 @@ for pkg in "${PYTHON_PACKAGES[@]}"; do
         import_name="yaml"
     fi
     if ! python3 -c "import $import_name" &>/dev/null; then
-        echo "ERROR: Python package '$pkg' is not installed. Install it with: pip install $pkg" >&2
+        echo "ERROR: Python package '$pkg' is not installed." >&2
+        echo "       Run: pip install -r requirements.txt" >&2
         exit 1
     fi
     echo "  $pkg ... OK"
@@ -69,7 +77,7 @@ echo "=== Step 3: Building the C++ simulator ==="
 cd csegfold
 mkdir -p build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=ON
 make -j"$(nproc)"
 cd "$PROJECT_ROOT"
 
@@ -79,23 +87,24 @@ echo "  Build complete."
 
 echo "=== Step 4: Verifying build ==="
 
-if [ ! -x csegfold/build/ablation_runner ]; then
-    echo "ERROR: ablation_runner executable not found after build." >&2
+if [ ! -x csegfold/build/csegfold ]; then
+    echo "ERROR: csegfold executable not found after build." >&2
     exit 1
 fi
-echo "  ablation_runner executable found ... OK"
+echo "  csegfold executable found ... OK"
+
+if [ ! -x csegfold/build/ablation_runner ]; then
+    echo "WARNING: ablation_runner not found (optional, used for synthetic experiments)."
+fi
 
 # ─── Step 5: Run smoke test ──────────────────────────────────────────────────
 
 echo "=== Step 5: Running smoke test ==="
 
-./csegfold/build/ablation_runner \
-    --config configs/baseline.yaml \
-    --out_dir /tmp/segfold_smoke \
-    --size 48 \
-    --densityA 0.5 \
-    --densityB 0.5 \
-    --random_state 1
+./csegfold/build/csegfold \
+    --config configs/segfold.yaml \
+    --M 48 --K 48 --N 48 \
+    --density-a 0.5 --density-b 0.5 --seed 1
 
 echo "  Smoke test passed."
 

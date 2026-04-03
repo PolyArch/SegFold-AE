@@ -1,7 +1,6 @@
-# SegFold Configuration — 1MB Total Cache, HBM2 DRAM, 256 PEs
-# Based on exp/config/test.yaml + memory hierarchy for fair comparison
-# PE count: 16x16 = 256 (matches Spada's 32x8 = 256)
-# Cache: L1=1MB (single-level, no L2)
+# SegFold Configuration — 1.5MB L1 Cache, HBM2 DRAM, 256 PEs
+# PE count: 16x16 = 256
+# Cache: L1=1.5MB (single-level, no L2)
 
 # Core settings
 is_dense: False

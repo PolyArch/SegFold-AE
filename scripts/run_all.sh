@@ -94,8 +94,6 @@ function ts {
 # ── Resolve paths ────────────────────────────────────────────────────────
 
 CONFIG_PATH="$PROJECT_ROOT/$CONFIG"
-ABLATION_RUNNER="$PROJECT_ROOT/csegfold/build/ablation_runner"
-
 if [ ! -f "$CONFIG_PATH" ]; then
     echo "[run_all] ERROR: config file not found: $CONFIG_PATH"
     exit 1
@@ -137,14 +135,21 @@ else
     echo ""
 fi
 
+# ── Download matrices if needed ──────────────────────────────────────────
+
+echo "[$(ts)] Step 0b: Downloading SuiteSparse matrices (if needed)..."
+python3 "$PROJECT_ROOT/scripts/download_matrices.py"
+echo "[$(ts)] Step 0b: Matrix download complete."
+echo ""
+
 # ── Experiment plan ──────────────────────────────────────────────────────
 
 echo "=========================================="
 echo " Experiment Plan"
 echo "=========================================="
-echo " 1. Synthetic matrices  (varying density/size)  ~20-40 min"
-echo " 2. SuiteSparse matrices                        ~15-30 min"
-echo " 3. Ablation studies                            ~30-60 min"
+echo " 1. Overall performance    (11 matrices)         ~15-30 min"
+echo " 2. Non-square performance (6 matrices)          ~10-20 min"
+echo " 3. Speedup breakdown      (5 configs x 12 mat)  ~30-60 min"
 echo " 4. Collect results into CSV"
 echo " 5. Generate plots"
 echo ""
@@ -152,37 +157,28 @@ echo " Estimated total runtime: 1-2 hours (depends on hardware)"
 echo "=========================================="
 echo ""
 
-# ── Step 1: Synthetic experiments ────────────────────────────────────────
+# ── Step 1: Overall performance ──────────────────────────────────────────
 
-echo "[$(ts)] Step 1: Running synthetic matrix experiments..."
-if [ -f "$PROJECT_ROOT/scripts/run_synthetic.sh" ]; then
-    CONFIG="$CONFIG_PATH" ABLATION_RUNNER="$ABLATION_RUNNER" MAX_JOBS="$MAX_JOBS" bash "$PROJECT_ROOT/scripts/run_synthetic.sh" "$OUT_DIR"
-    echo "[$(ts)] Step 1: Synthetic experiments complete."
-else
-    echo "[run_all] WARNING: scripts/run_synthetic.sh not found, skipping."
-fi
+echo "[$(ts)] Step 1: Running overall performance experiments..."
+python3 "$PROJECT_ROOT/scripts/run_overall.py" "$OUT_DIR" \
+    --jobs "$MAX_JOBS" --config "$CONFIG_PATH"
+echo "[$(ts)] Step 1: Overall performance complete."
 echo ""
 
-# ── Step 2: SuiteSparse experiments ──────────────────────────────────────
+# ── Step 2: Non-square performance ───────────────────────────────────────
 
-echo "[$(ts)] Step 2: Running SuiteSparse matrix experiments..."
-if [ -f "$PROJECT_ROOT/scripts/run_suitesparse.sh" ]; then
-    CONFIG="$CONFIG_PATH" ABLATION_RUNNER="$ABLATION_RUNNER" MAX_JOBS="$MAX_JOBS" bash "$PROJECT_ROOT/scripts/run_suitesparse.sh" "$OUT_DIR"
-    echo "[$(ts)] Step 2: SuiteSparse experiments complete."
-else
-    echo "[run_all] WARNING: scripts/run_suitesparse.sh not found, skipping."
-fi
+echo "[$(ts)] Step 2: Running non-square performance experiments..."
+python3 "$PROJECT_ROOT/scripts/run_nonsquare.py" "$OUT_DIR" \
+    --jobs "$MAX_JOBS" --config "$CONFIG_PATH"
+echo "[$(ts)] Step 2: Non-square performance complete."
 echo ""
 
-# ── Step 3: Ablation studies ─────────────────────────────────────────────
+# ── Step 3: Speedup breakdown ────────────────────────────────────────────
 
-echo "[$(ts)] Step 3: Running ablation studies..."
-if [ -f "$PROJECT_ROOT/scripts/run_ablation.sh" ]; then
-    ABLATION_RUNNER="$ABLATION_RUNNER" MAX_JOBS="$MAX_JOBS" bash "$PROJECT_ROOT/scripts/run_ablation.sh" "$OUT_DIR"
-    echo "[$(ts)] Step 3: Ablation studies complete."
-else
-    echo "[run_all] WARNING: scripts/run_ablation.sh not found, skipping."
-fi
+echo "[$(ts)] Step 3: Running speedup breakdown experiments..."
+python3 "$PROJECT_ROOT/scripts/run_breakdown.py" "$OUT_DIR" \
+    --jobs "$MAX_JOBS"
+echo "[$(ts)] Step 3: Speedup breakdown complete."
 echo ""
 
 # ── Step 4: Collect results ──────────────────────────────────────────────
@@ -199,12 +195,19 @@ echo ""
 # ── Step 5: Generate plots ───────────────────────────────────────────────
 
 echo "[$(ts)] Step 5: Generating plots..."
+for plot_script in plot_overall.py plot_nonsquare.py plot_breakdown.py; do
+    if [ -f "$PROJECT_ROOT/scripts/$plot_script" ]; then
+        echo "  Running $plot_script ..."
+        python3 "$PROJECT_ROOT/scripts/$plot_script" "$OUT_DIR"
+    else
+        echo "  WARNING: scripts/$plot_script not found, skipping."
+    fi
+done
+# Also run legacy plot_results.py if present
 if [ -f "$PROJECT_ROOT/scripts/plot_results.py" ]; then
     python3 "$PROJECT_ROOT/scripts/plot_results.py" "$OUT_DIR"
-    echo "[$(ts)] Step 5: Plots generated."
-else
-    echo "[run_all] WARNING: scripts/plot_results.py not found, skipping."
 fi
+echo "[$(ts)] Step 5: Plots generated."
 echo ""
 
 # ── Step 6: Summary and comparison ───────────────────────────────────────
