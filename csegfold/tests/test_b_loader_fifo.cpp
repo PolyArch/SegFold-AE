@@ -419,10 +419,10 @@ void test_output_correctness() {
 
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
-            if (sim_no_fifo.acc_output(i, j) != expected(i, j)) {
+            if (sim_no_fifo.acc_output.get(i, j) != expected(i, j)) {
                 no_fifo_correct = false;
             }
-            if (sim_with_fifo.acc_output(i, j) != expected(i, j)) {
+            if (sim_with_fifo.acc_output.get(i, j) != expected(i, j)) {
                 with_fifo_correct = false;
             }
         }
@@ -503,11 +503,11 @@ void test_output_correctness_ii0_dense() {
 
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 8; ++j) {
-            if (sim_no_fifo.acc_output(i, j) != expected_val) {
+            if (sim_no_fifo.acc_output.get(i, j) != expected_val) {
                 no_fifo_correct = false;
                 no_fifo_errors++;
             }
-            if (sim_with_fifo.acc_output(i, j) != expected_val) {
+            if (sim_with_fifo.acc_output.get(i, j) != expected_val) {
                 with_fifo_correct = false;
                 with_fifo_errors++;
             }

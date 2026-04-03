@@ -4,6 +4,7 @@
 #include "csegfold/modules/matrixLoader.hpp"
 #include "csegfold/memory/MemoryBackend.hpp"
 #include "csegfold/memory/MemoryRequest.hpp"
+#include <map>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,6 +24,7 @@ public:
     std::vector<int> active_indices;
     int lptr = 0;  // Index into B_rows_to_load for next row to process
     std::vector<bool> ready_to_evict;
+    std::vector<int> pe_row_tile_id;  // current tile block per PE row (for tile pipelining)
     
     void fill_b_loader_window();
     
@@ -33,6 +35,7 @@ public:
     bool is_done = false;
     
     std::vector<int> B_rows_to_load;
+    std::map<int, int> b_row_demand_hist;  // demand -> count of B rows with that demand
     
     void filter_intersections();
     std::pair<bool, bool> check_b_loader_tile(int r);
@@ -58,6 +61,7 @@ public:
     void tick_memory_backend();
     std::vector<MemoryResponse> get_completed_responses();
     bool has_pending_requests() const;
+    bool memory_can_accept() const;
 
     // Deferred response handling for two-pass FIFO processing
     void set_deferred_responses(std::vector<MemoryResponse>&& responses);

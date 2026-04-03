@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 using namespace csegfold;
 using json = nlohmann::json;
@@ -164,7 +164,7 @@ void test_trace_generation() {
         for (int i = 0; i < 4; ++i) {
             std::cout << "    [";
             for (int j = 0; j < 4; ++j) {
-                std::cout << sim.acc_output(i, j);
+                std::cout << sim.acc_output.get(i, j);
                 if (j < 3) std::cout << ", ";
             }
             std::cout << "]" << std::endl;

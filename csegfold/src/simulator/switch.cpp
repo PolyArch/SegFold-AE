@@ -62,7 +62,7 @@ static void send_b_to_fifo(Simulator* simulator, SwitchModule* switchModule, int
                   << ", b_row=" << switch_.b.row.value() << ") in tiled A_indexed" << std::endl;
         assert(false && "get_original_index_a failed - see stderr for details");
     }
-    int a_val = simulator->matrix.A_orig(orig_idx_a.first, orig_idx_a.second);
+    int a_val = simulator->matrix.A_orig_csr.get(orig_idx_a.first, orig_idx_a.second);
     next_pe_update["a_val"] = a_val;
     next_pe_update["a_m"] = orig_idx_a.first;
     next_pe_update["a_k"] = orig_idx_a.second;
@@ -306,42 +306,82 @@ void run_evictions(Simulator* simulator, MemoryController* controller,
         if (!controller->ready_to_evict[i]) {
             continue;
         }
-        
-        // Check if all switches and PEs are idle, and FIFO is empty (Python: lines 295-297)
-        bool ready_to_evict = true;
-        for (int j = 0; j < switchModule->vcols(); ++j) {
-            if (!switchModule->next_sw_idle(i, j) || 
-                !peModule->next_pe_idle(i, j) || 
-                simulator->fifo[i][j].rptr > simulator->fifo[i][j].lptr) {
-                ready_to_evict = false;
+
+        if (simulator->cfg.fast_eviction) {
+            // Pipelined eviction: only wait for switches and B loader FIFOs to clear.
+            // PEs continue draining old tile data from PE FIFOs independently.
+            bool can_evict = true;
+            for (int j = 0; j < switchModule->vcols(); ++j) {
+                if (!switchModule->next_sw_idle(i, j)) {
+                    can_evict = false;
+                    break;
+                }
+                if (simulator->cfg.enable_b_loader_fifo &&
+                    !switchModule->b_loader_fifo[i][j].is_empty()) {
+                    can_evict = false;
+                    break;
+                }
+            }
+            if (can_evict) {
                 if (simulator->debug()) {
                     std::ostringstream oss;
-                    oss << "[run_evictions] Cycle " << simulator->cycle() 
-                        << " PE row " << i << " not ready: "
-                        << "sw_idle=" << switchModule->next_sw_idle(i, j)
-                        << " pe_idle=" << peModule->next_pe_idle(i, j)
-                        << " fifo_empty=" << (simulator->fifo[i][j].rptr <= simulator->fifo[i][j].lptr);
+                    oss << "[run_evictions] Cycle " << simulator->cycle()
+                        << " Fast-evicting B rows for PE row " << i;
                     simulator->log->debug(oss.str());
                 }
-                break;
+                switchModule->evict_b_rows(i);
+                switchModule->mapper.evict_b_rows(i);
+                controller->ready_to_evict[i] = false;
+                if (switchModule->has_lut()) {
+                    switchModule->lut->clear_row(i);
+                }
+                controller->fill_b_loader_window();
+                // Update pe_row_tile_id to newest tile in active_indices
+                if (controller->cfg.enable_tile_pipeline && !controller->active_indices.empty()) {
+                    int max_r = *std::max_element(controller->active_indices.begin(), controller->active_indices.end());
+                    controller->pe_row_tile_id[i] = max_r / controller->matrix->K;
+                }
             }
-        }
-        
-        if (ready_to_evict) {
-            if (simulator->debug()) {
-                std::ostringstream oss;
-                oss << "[run_evictions] Cycle " << simulator->cycle() 
-                    << " Evicting B rows for PE row " << i;
-                simulator->log->debug(oss.str());
+        } else {
+            // Original path: wait for switches + PE FIFOs + PEs all idle
+            bool ready_to_evict = true;
+            for (int j = 0; j < switchModule->vcols(); ++j) {
+                if (!switchModule->next_sw_idle(i, j) ||
+                    simulator->fifo[i][j].rptr > simulator->fifo[i][j].lptr) {
+                    ready_to_evict = false;
+                    break;
+                }
+                if (!peModule->next_pe_idle(i, j)) {
+                    ready_to_evict = false;
+                    if (simulator->debug()) {
+                        std::ostringstream oss;
+                        oss << "[run_evictions] Cycle " << simulator->cycle()
+                            << " PE row " << i << " not ready: pe_idle=false";
+                        simulator->log->debug(oss.str());
+                    }
+                    break;
+                }
             }
-            switchModule->evict_b_rows(i);
-            switchModule->mapper.evict_b_rows(i);
-            controller->ready_to_evict[i] = false;
-            if (switchModule->has_lut()) {
-                switchModule->lut->clear_row(i);
+            if (ready_to_evict) {
+                if (simulator->debug()) {
+                    std::ostringstream oss;
+                    oss << "[run_evictions] Cycle " << simulator->cycle()
+                        << " Evicting B rows for PE row " << i;
+                    simulator->log->debug(oss.str());
+                }
+                switchModule->evict_b_rows(i);
+                switchModule->mapper.evict_b_rows(i);
+                controller->ready_to_evict[i] = false;
+                if (switchModule->has_lut()) {
+                    switchModule->lut->clear_row(i);
+                }
+                controller->fill_b_loader_window();
+                // Update pe_row_tile_id to newest tile in active_indices
+                if (controller->cfg.enable_tile_pipeline && !controller->active_indices.empty()) {
+                    int max_r = *std::max_element(controller->active_indices.begin(), controller->active_indices.end());
+                    controller->pe_row_tile_id[i] = max_r / controller->matrix->K;
+                }
             }
-            // After eviction, try to fill the loader window with the next tile
-            controller->fill_b_loader_window();
         }
     }
 }

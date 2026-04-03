@@ -67,7 +67,7 @@ void test_load_a_from_fifo_to_pe_denseA() {
     B(2, 3) = 4;
     
     Simulator sim(A, B);
-    sim.matrix.denseA = A;  // Set denseA
+    // A_orig_csr is already set from constructor — no extra setup needed
     
     std::pair<int, int> orig_idx_a(1, 2);
     std::unordered_map<std::string, int> b;

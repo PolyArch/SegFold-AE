@@ -5,6 +5,14 @@
 namespace csegfold {
 
 CacheLevel::CacheLevel(const CacheConfig& config) : config_(config) {
+    if (config.size_kb == 0) {
+        // Zero-size cache: passthrough mode — all accesses miss
+        num_sets_ = 0;
+        offset_bits_ = 0;
+        index_bits_ = 0;
+        return;
+    }
+
     // Calculate cache geometry
     int total_size_bytes = config.size_kb * 1024;
     int num_lines = total_size_bytes / config.line_size;
@@ -29,6 +37,10 @@ uint64_t CacheLevel::get_set_index(uint64_t address) const {
 }
 
 bool CacheLevel::access(uint64_t address) {
+    if (num_sets_ == 0) {
+        stats_.misses++;
+        return false;
+    }
     uint64_t set_idx = get_set_index(address);
     uint64_t tag = get_tag(address);
 
@@ -51,6 +63,9 @@ bool CacheLevel::access(uint64_t address) {
 }
 
 void CacheLevel::insert(uint64_t address) {
+    if (num_sets_ == 0) {
+        return;  // No-op for zero-size cache
+    }
     uint64_t set_idx = get_set_index(address);
     uint64_t tag = get_tag(address);
 

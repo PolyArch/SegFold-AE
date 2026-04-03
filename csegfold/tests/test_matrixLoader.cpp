@@ -45,7 +45,7 @@ void test_matrixLoader_creation() {
     test_assert(loader.K == 8, "MatrixLoader K dimension");
     test_assert(loader.A.rows() == 8, "MatrixLoader A rows");
     test_assert(loader.B.rows() == 8, "MatrixLoader B rows");
-    test_assert(loader.C.rows() == 8, "MatrixLoader C computed");
+    test_assert(loader.C_csr_result.rows_ == 8, "MatrixLoader C computed");
 }
 
 void test_init_k_to_tile_id() {
@@ -145,12 +145,11 @@ void test_data_transfer_helper() {
     B(0, 0) = 1; B(1, 1) = 1;
 
     MatrixLoader loader(A, B);
-    // Use loader.C which is Matrix<int32_t> to avoid overflow
-    auto [a_nnz, b_nnz, c_nnz] = loader.data_transfer(A, B, loader.C);
+    auto [a_nnz, b_nnz, c_nnz] = loader.data_transfer(A, B, loader.C_csr_result.nnz());
 
     test_assert(a_nnz == 3, "data_transfer A NNZ");
     test_assert(b_nnz == 2, "data_transfer B NNZ");
-    test_assert(c_nnz == loader.C.nnz(), "data_transfer C NNZ");
+    test_assert(c_nnz == loader.C_csr_result.nnz(), "data_transfer C NNZ");
 }
 
 void test_b_csr_conversion() {
@@ -249,10 +248,10 @@ void test_init_indices() {
     
     // Note: After process_tiles(), A_indexed and B_indexed have tiled shapes, not original shapes
     // So we check the original matrices instead
-    test_assert(loader.A_orig.rows() == 3, "A_orig has 3 rows");
-    test_assert(loader.A_orig.cols() == 4, "A_orig has 4 cols");
-    test_assert(loader.B_orig.rows() == 4, "B_orig has 4 rows");
-    test_assert(loader.B_orig.cols() == 3, "B_orig has 3 cols");
+    test_assert(loader.A_orig_csr.rows_ == 3, "A_orig_csr has 3 rows");
+    test_assert(loader.A_orig_csr.cols_ == 4, "A_orig_csr has 4 cols");
+    test_assert(loader.B_orig_csr.rows_ == 4, "B_orig_csr has 4 rows");
+    test_assert(loader.B_orig_csr.cols_ == 3, "B_orig_csr has 3 cols");
     
     // Check that A_indexed and B_indexed have valid shapes (tiled dimensions)
     test_assert(loader.A_indexed.rows_ > 0, "A_indexed has valid rows after tiling");
@@ -313,23 +312,22 @@ void test_generate_offsets() {
     
     MatrixLoader loader(A, B);
     
-    test_assert(loader.A_nnz_offset.rows() == 2, "A_nnz_offset rows");
-    test_assert(loader.A_nnz_offset.cols() == 3, "A_nnz_offset cols");
-    
-    std::cout << "  A_nnz_offset[0,0] = " << loader.A_nnz_offset(0, 0) << std::endl;
-    std::cout << "  A_nnz_offset[0,2] = " << loader.A_nnz_offset(0, 2) << std::endl;
-    std::cout << "  A_nnz_offset[1,1] = " << loader.A_nnz_offset(1, 1) << std::endl;
-    
-    test_assert(loader.A_nnz_offset(0, 0) > 0, "A offset[0,0] > 0 (NNZ)");
-    test_assert(loader.A_nnz_offset(0, 1) == 0, "A offset[0,1] = 0 (zero)");
-    test_assert(loader.A_nnz_offset(0, 2) > 0, "A offset[0,2] > 0 (NNZ)");
-    test_assert(loader.A_nnz_offset(1, 0) == 0, "A offset[1,0] = 0 (zero)");
-    test_assert(loader.A_nnz_offset(1, 1) > 0, "A offset[1,1] > 0 (NNZ)");
-    
-    test_assert(loader.B_nnz_offset(0, 0) == 1, "B offset[0,0] = 1");
-    test_assert(loader.B_nnz_offset(0, 1) == 2, "B offset[0,1] = 2");
-    test_assert(loader.B_nnz_offset(1, 0) == 0, "B offset[1,0] = 0 (zero)");
-    test_assert(loader.B_nnz_offset(2, 0) == 3, "B offset[2,0] = 3");
+    test_assert(loader.A_nnz_offset_cols_ == 3, "A_nnz_offset cols");
+
+    std::cout << "  A_nnz_offset[0,0] = " << loader.A_nnz_offset_get(0, 0) << std::endl;
+    std::cout << "  A_nnz_offset[0,2] = " << loader.A_nnz_offset_get(0, 2) << std::endl;
+    std::cout << "  A_nnz_offset[1,1] = " << loader.A_nnz_offset_get(1, 1) << std::endl;
+
+    test_assert(loader.A_nnz_offset_get(0, 0) > 0, "A offset[0,0] > 0 (NNZ)");
+    test_assert(loader.A_nnz_offset_get(0, 1) == 0, "A offset[0,1] = 0 (zero)");
+    test_assert(loader.A_nnz_offset_get(0, 2) > 0, "A offset[0,2] > 0 (NNZ)");
+    test_assert(loader.A_nnz_offset_get(1, 0) == 0, "A offset[1,0] = 0 (zero)");
+    test_assert(loader.A_nnz_offset_get(1, 1) > 0, "A offset[1,1] > 0 (NNZ)");
+
+    test_assert(loader.B_nnz_offset_get(0, 0) == 1, "B offset[0,0] = 1");
+    test_assert(loader.B_nnz_offset_get(0, 1) == 2, "B offset[0,1] = 2");
+    test_assert(loader.B_nnz_offset_get(1, 0) == 0, "B offset[1,0] = 0 (zero)");
+    test_assert(loader.B_nnz_offset_get(2, 0) == 3, "B offset[2,0] = 3");
 }
 
 void test_dense_tiling() {

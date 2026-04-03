@@ -16,6 +16,7 @@ namespace csegfold {
 class Simulator : public BaseModule {
 public:
     Simulator(const Matrix<int8_t>& A, const Matrix<int8_t>& B);
+    Simulator(const CSRMatrix& A_csr, const CSRMatrix& B_csr);
     virtual ~Simulator();
     
     MatrixLoader matrix;
@@ -67,7 +68,7 @@ public:
     std::string serialize_state(const std::string& format = "json", bool include_traces = false) const;
     void run_check();
     
-    Matrix<int64_t> acc_output;
+    SparseAccumulator acc_output;
     std::unordered_map<std::string, std::string> snapshot;
     std::vector<std::unordered_map<std::string, std::string>> trace;
     

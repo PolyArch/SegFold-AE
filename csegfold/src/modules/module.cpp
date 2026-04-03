@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include <yaml-cpp/yaml.h>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
@@ -35,12 +35,15 @@ std::unordered_map<std::string, std::string> Config::to_dict() const {
     result["virtual_pe_col_num"] = std::to_string(virtual_pe_col_num);
     result["enable_multi_b_row_loading"] = enable_multi_b_row_loading ? "true" : "false";
     result["enable_b_row_reordering"] = enable_b_row_reordering ? "true" : "false";
+    result["b_row_scheduling"] = b_row_scheduling;
     result["enable_dynamic_routing"] = enable_dynamic_routing ? "true" : "false";
     result["enable_partial_b_load"] = enable_partial_b_load ? "true" : "false";
     result["b_loader_window_size"] = std::to_string(b_loader_window_size);
     result["enable_b_v_contention"] = enable_b_v_contention ? "true" : "false";
     result["enable_dynamic_scheduling"] = enable_dynamic_scheduling ? "true" : "false";
     result["enable_tile_eviction"] = enable_tile_eviction ? "true" : "false";
+    result["enable_tile_pipeline"] = enable_tile_pipeline ? "true" : "false";
+    result["fast_eviction"] = fast_eviction ? "true" : "false";
     result["c_col_update_per_row"] = std::to_string(c_col_update_per_row);
     result["II"] = std::to_string(II);
     result["b_loader_row_limit"] = std::to_string(b_loader_row_limit);
@@ -56,6 +59,7 @@ std::unordered_map<std::string, std::string> Config::to_dict() const {
     result["num_cycles_store_c"] = std::to_string(num_cycles_store_c);
     result["num_cycles_mult_ii"] = std::to_string(num_cycles_mult_ii);
     result["num_cycles_memory_check"] = std::to_string(num_cycles_memory_check);
+    result["bypass_a_memory_hierarchy"] = bypass_a_memory_hierarchy ? "true" : "false";
     result["enable_b_loader_fifo"] = enable_b_loader_fifo ? "true" : "false";
     result["b_loader_fifo_size"] = std::to_string(b_loader_fifo_size);
     result["enable_spad"] = enable_spad ? "true" : "false";
@@ -65,6 +69,7 @@ std::unordered_map<std::string, std::string> Config::to_dict() const {
     result["very_verbose"] = very_verbose ? "true" : "false";
     result["show_progress"] = show_progress ? "true" : "false";
     result["save_trace"] = save_trace ? "true" : "false";
+    result["save_stats_trace"] = save_stats_trace ? "true" : "false";
     result["run_check"] = run_check ? "true" : "false";
     result["max_cycle"] = std::to_string(max_cycle);
     result["debug_log_frequency"] = std::to_string(debug_log_frequency);
@@ -76,16 +81,19 @@ std::unordered_map<std::string, std::string> Config::to_dict() const {
     result["enable_decompose_a_row"] = enable_decompose_a_row ? "true" : "false";
     result["num_split"] = std::to_string(num_split);
     result["enable_dynamic_tiling"] = enable_dynamic_tiling ? "true" : "false";
+    result["tile_c_multiplier"] = std::to_string(tile_c_multiplier);
     result["enable_a_csc"] = enable_a_csc ? "true" : "false";
     result["enable_memory_hierarchy"] = enable_memory_hierarchy ? "true" : "false";
     result["use_external_memory"] = use_external_memory ? "true" : "false";
     result["memory_server_port"] = std::to_string(memory_server_port);
     result["memory_server_host"] = memory_server_host;
     result["dummy_server_path"] = dummy_server_path;
+    result["element_size"] = std::to_string(element_size);
     result["a_pointer_offset"] = std::to_string(a_pointer_offset);
     result["b_pointer_offset"] = std::to_string(b_pointer_offset);
     result["c_pointer_offset"] = std::to_string(c_pointer_offset);
     result["enable_filter"] = enable_filter ? "true" : "false";
+    result["enable_filter_intersection"] = enable_filter_intersection ? "true" : "false";
     result["enable_outstanding_filter"] = enable_outstanding_filter ? "true" : "false";
     result["cache_line_size"] = std::to_string(cache_line_size);
     result["memory_backend_type"] = memory_backend_type;
@@ -216,6 +224,62 @@ std::unordered_map<std::string, std::string> Stats::to_dict() const {
     result["sw_idle_not_in_range"] = std::to_string(sw_idle_not_in_range);
     result["sw_idle_no_b_element"] = std::to_string(sw_idle_no_b_element);
     result["sw_idle_b_row_conflict"] = std::to_string(sw_idle_b_row_conflict);
+    // Sub-breakdown of sw_idle_no_b_element
+    result["sw_idle_no_b_row"] = std::to_string(sw_idle_no_b_row);
+    result["sw_idle_b_row_tail"] = std::to_string(sw_idle_b_row_tail);
+    // B row load length analysis
+    result["b_row_load_count"] = std::to_string(b_row_load_count);
+    result["b_row_total_potential"] = std::to_string(b_row_total_potential);
+    result["b_row_total_actual"] = std::to_string(b_row_total_actual);
+    result["b_row_tail_events"] = std::to_string(b_row_tail_events);
+    // B row length histogram as comma-separated "len:count" pairs
+    {
+        std::string hist_str;
+        for (const auto& [len, cnt] : b_row_length_hist) {
+            if (!hist_str.empty()) hist_str += ",";
+            hist_str += std::to_string(len) + ":" + std::to_string(cnt);
+        }
+        result["b_row_length_hist"] = hist_str;
+    }
+    // B row demand histogram (broadcast factor per B row)
+    {
+        std::string hist_str;
+        for (const auto& [demand, cnt] : b_row_demand_hist) {
+            if (!hist_str.empty()) hist_str += ",";
+            hist_str += std::to_string(demand) + ":" + std::to_string(cnt);
+        }
+        result["b_row_demand_hist"] = hist_str;
+    }
+    // Per-cycle B loads histogram
+    {
+        std::string hist_str;
+        for (const auto& [loads, cnt] : b_loads_per_cycle_hist) {
+            if (!hist_str.empty()) hist_str += ",";
+            hist_str += std::to_string(loads) + ":" + std::to_string(cnt);
+        }
+        result["b_loads_per_cycle_hist"] = hist_str;
+    }
+    // Per PE-row per cycle B loads histogram
+    {
+        std::string hist_str;
+        for (const auto& [loads, cnt] : b_loads_per_pe_row_hist) {
+            if (!hist_str.empty()) hist_str += ",";
+            hist_str += std::to_string(loads) + ":" + std::to_string(cnt);
+        }
+        result["b_loads_per_pe_row_hist"] = hist_str;
+    }
+    // Per PE-row idle switch breakdown
+    result["sw_idle_pe_row_no_b_row"] = std::to_string(sw_idle_pe_row_no_b_row);
+    result["sw_idle_pe_row_b_short"] = std::to_string(sw_idle_pe_row_b_short);
+    result["sw_idle_pe_row_not_in_range"] = std::to_string(sw_idle_pe_row_not_in_range);
+    result["sum_pe_rows_with_b_load"] = std::to_string(sum_pe_rows_with_b_load);
+    result["pe_row_load_cycles"] = std::to_string(pe_row_load_cycles);
+    // B loader bottleneck analysis
+    result["sum_b_rows_loaded_per_cycle"] = std::to_string(sum_b_rows_loaded_per_cycle);
+    result["sum_active_indices_per_cycle"] = std::to_string(sum_active_indices_per_cycle);
+    result["b_row_skip_eviction"] = std::to_string(b_row_skip_eviction);
+    result["b_row_skip_no_capacity"] = std::to_string(b_row_skip_no_capacity);
+    result["b_row_skip_b_loaded"] = std::to_string(b_row_skip_b_loaded);
     // Switch under-utilization stats (averages per cycle)
     result["avg_sw_move_stall_by_fifo"] = std::to_string(avg_sw_move_stall_by_fifo);
     result["avg_sw_move_stall_by_network"] = std::to_string(avg_sw_move_stall_by_network);
@@ -242,6 +306,7 @@ std::unordered_map<std::string, std::string> Stats::to_dict() const {
     result["l2_hits"] = std::to_string(l2_hits);
     result["l2_misses"] = std::to_string(l2_misses);
     result["dram_accesses"] = std::to_string(dram_accesses);
+    result["filter_coalesced"] = std::to_string(filter_coalesced);
     result["avg_memory_latency"] = std::to_string(avg_memory_latency);
     result["spad_load_hits"] = std::to_string(spad_load_hits);
     result["spad_load_misses"] = std::to_string(spad_load_misses);
@@ -425,12 +490,15 @@ void update_cfg(const std::unordered_map<std::string, std::string>& kwargs) {
         else if (key == "virtual_pe_col_num") config_.virtual_pe_col_num = std::stoi(value);
         else if (key == "enable_multi_b_row_loading") config_.enable_multi_b_row_loading = (value == "true");
         else if (key == "enable_b_row_reordering") config_.enable_b_row_reordering = (value == "true");
+        else if (key == "b_row_scheduling") config_.b_row_scheduling = value;
         else if (key == "enable_dynamic_routing") config_.enable_dynamic_routing = (value == "true");
         else if (key == "enable_partial_b_load") config_.enable_partial_b_load = (value == "true");
         else if (key == "b_loader_window_size") config_.b_loader_window_size = std::stoi(value);
         else if (key == "enable_b_v_contention") config_.enable_b_v_contention = (value == "true");
         else if (key == "enable_dynamic_scheduling") config_.enable_dynamic_scheduling = (value == "true");
         else if (key == "enable_tile_eviction") config_.enable_tile_eviction = (value == "true");
+        else if (key == "enable_tile_pipeline") config_.enable_tile_pipeline = (value == "true");
+        else if (key == "fast_eviction") config_.fast_eviction = (value == "true");
         else if (key == "c_col_update_per_row") config_.c_col_update_per_row = std::stoi(value);
         else if (key == "II") config_.II = std::stoi(value);
         else if (key == "b_loader_row_limit") config_.b_loader_row_limit = std::stoi(value);
@@ -446,6 +514,7 @@ void update_cfg(const std::unordered_map<std::string, std::string>& kwargs) {
         else if (key == "num_cycles_store_c") config_.num_cycles_store_c = std::stoi(value);
         else if (key == "num_cycles_mult_ii") config_.num_cycles_mult_ii = std::stoi(value);
         else if (key == "num_cycles_memory_check") config_.num_cycles_memory_check = std::stoi(value);
+        else if (key == "bypass_a_memory_hierarchy") config_.bypass_a_memory_hierarchy = (value == "true");
         else if (key == "enable_b_loader_fifo") config_.enable_b_loader_fifo = (value == "true");
         else if (key == "b_loader_fifo_size") config_.b_loader_fifo_size = std::stoi(value);
         else if (key == "enable_spad") config_.enable_spad = (value == "true");
@@ -455,6 +524,7 @@ void update_cfg(const std::unordered_map<std::string, std::string>& kwargs) {
         else if (key == "very_verbose") config_.very_verbose = (value == "true");
         else if (key == "show_progress") config_.show_progress = (value == "true");
         else if (key == "save_trace") config_.save_trace = (value == "true");
+        else if (key == "save_stats_trace") config_.save_stats_trace = (value == "true");
         else if (key == "run_check") config_.run_check = (value == "true");
         else if (key == "max_cycle") config_.max_cycle = std::stoi(value);
         else if (key == "debug_log_frequency") config_.debug_log_frequency = std::stoi(value);
@@ -466,16 +536,19 @@ void update_cfg(const std::unordered_map<std::string, std::string>& kwargs) {
         else if (key == "enable_decompose_a_row") config_.enable_decompose_a_row = (value == "true");
         else if (key == "num_split") config_.num_split = std::stoi(value);
         else if (key == "enable_dynamic_tiling") config_.enable_dynamic_tiling = (value == "true");
+        else if (key == "tile_c_multiplier") config_.tile_c_multiplier = std::stod(value);
         else if (key == "enable_a_csc") config_.enable_a_csc = (value == "true");
         else if (key == "enable_memory_hierarchy") config_.enable_memory_hierarchy = (value == "true");
         else if (key == "use_external_memory") config_.use_external_memory = (value == "true");
         else if (key == "memory_server_port") config_.memory_server_port = std::stoi(value);
         else if (key == "memory_server_host") config_.memory_server_host = value;
         else if (key == "dummy_server_path") config_.dummy_server_path = value;
+        else if (key == "element_size") config_.element_size = std::stoi(value);
         else if (key == "a_pointer_offset") config_.a_pointer_offset = std::stoi(value);
         else if (key == "b_pointer_offset") config_.b_pointer_offset = std::stoi(value);
         else if (key == "c_pointer_offset") config_.c_pointer_offset = std::stoi(value);
         else if (key == "enable_filter") config_.enable_filter = (value == "true");
+        else if (key == "enable_filter_intersection") config_.enable_filter_intersection = (value == "true");
         else if (key == "enable_outstanding_filter") config_.enable_outstanding_filter = (value == "true");
         else if (key == "cache_line_size") config_.cache_line_size = std::stoi(value);
         else if (key == "memory_backend_type") config_.memory_backend_type = value;

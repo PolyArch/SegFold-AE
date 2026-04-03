@@ -86,7 +86,7 @@ void test_small_matrix_simulation() {
     for (int i = 0; i < 4; ++i) {
         std::cout << "    [";
         for (int j = 0; j < 4; ++j) {
-            std::cout << sim.acc_output(i, j);
+            std::cout << sim.acc_output.get(i, j);
             if (j < 3) std::cout << ", ";
         }
         std::cout << "]" << std::endl;
@@ -189,7 +189,7 @@ void test_larger_matrix_simulation() {
         for (int i = 0; i < sim.matrix.M; ++i) {
             std::cout << "    [";
             for (int j = 0; j < sim.matrix.N; ++j) {
-                std::cout << sim.acc_output(i, j);
+                std::cout << sim.acc_output.get(i, j);
                 if (j < sim.matrix.N - 1) std::cout << ", ";
             }
             std::cout << "]" << std::endl;
@@ -384,7 +384,7 @@ void test_8x8_matrix_debug() {
         for (int i = 0; i < 8; ++i) {
             std::cout << "    Row " << i << ": [";
             for (int j = 0; j < 8; ++j) {
-                std::cout << sim.acc_output(i, j);
+                std::cout << sim.acc_output.get(i, j);
                 if (j < 7) std::cout << ", ";
             }
             std::cout << "]" << std::endl;
@@ -405,7 +405,7 @@ void test_8x8_matrix_debug() {
         for (int i = 0; i < 8; ++i) {
             bool has_nonzero = false;
             for (int j = 0; j < 8; ++j) {
-                if (sim.acc_output(i, j) != 0) {
+                if (sim.acc_output.get(i, j) != 0) {
                     has_nonzero = true;
                     break;
                 }
@@ -471,7 +471,7 @@ void test_8x8_matrix_dense() {
         for (int i = 0; i < sim.matrix.M; ++i) {
             std::cout << "    Row " << i << ": [";
             for (int j = 0; j < sim.matrix.N; ++j) {
-                std::cout << sim.acc_output(i, j);
+                std::cout << sim.acc_output.get(i, j);
                 if (j < sim.matrix.N - 1) std::cout << ", ";
             }
             std::cout << "]" << std::endl;
@@ -502,13 +502,13 @@ void test_8x8_matrix_dense() {
                     expected_val += static_cast<int64_t>(A(i, k)) * static_cast<int64_t>(B(k, j));
                 }
                 
-                if (sim.acc_output(i, j) != expected_val) {
+                if (sim.acc_output.get(i, j) != expected_val) {
                     if (mismatch_count < max_mismatches_to_show) {
                         if (mismatch_count == 0) {
                             std::cout << "  Output mismatches found:" << std::endl;
                         }
                         std::cout << "    Mismatch at (" << i << ", " << j << "): got " 
-                                  << sim.acc_output(i, j) << ", expected " 
+                                  << sim.acc_output.get(i, j) << ", expected "
                                   << expected_val << std::endl;
                         mismatch_count++;
                     }
@@ -591,7 +591,7 @@ void test_128x128_matrix_dense() {
         for (int i = 0; i < 5 && i < sim.matrix.M; ++i) {
             std::cout << "    [";
             for (int j = 0; j < 5 && j < sim.matrix.N; ++j) {
-                std::cout << sim.acc_output(i, j);
+                std::cout << sim.acc_output.get(i, j);
                 if (j < 4 && j < sim.matrix.N - 1) std::cout << ", ";
             }
             std::cout << "]" << std::endl;
@@ -620,13 +620,13 @@ void test_128x128_matrix_dense() {
                     expected_val += static_cast<int64_t>(A(i, k)) * static_cast<int64_t>(B(k, j));
                 }
                 
-                if (sim.acc_output(i, j) != expected_val) {
+                if (sim.acc_output.get(i, j) != expected_val) {
                     if (mismatch_count < max_mismatches_to_show) {
                         if (mismatch_count == 0) {
                             std::cout << "  Output mismatches found:" << std::endl;
                         }
                         std::cout << "    Mismatch at (" << i << ", " << j << "): got " 
-                                  << sim.acc_output(i, j) << ", expected " 
+                                  << sim.acc_output.get(i, j) << ", expected "
                                   << expected_val << std::endl;
                         mismatch_count++;
                     }

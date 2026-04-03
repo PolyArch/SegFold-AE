@@ -124,13 +124,7 @@ int main() {
     auto [b_r4, b_c4] = loader.B_indexed.get_original_coords(4, 0);
     std::cout << "(" << b_r4 << "," << b_c4 << ")" << std::endl;
     
-    // Print tiled matrices (if dense versions exist)
-    if (loader.denseA.has_value()) {
-        print_matrix("A_tiled (denseA)", loader.denseA.value(), 8, 16);
-    }
-    if (loader.denseB.has_value()) {
-        print_matrix("B_tiled (denseB)", loader.denseB.value(), 16, 8);
-    }
+    // Dense A/B copies removed — using CSR format only
     
     // Print indexed matrices
     print_indexed_csr_matrix("A_indexed", loader.A_indexed, 8, 16);

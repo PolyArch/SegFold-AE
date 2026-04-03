@@ -118,8 +118,8 @@ void test_sparse_4x4_functionality() {
             for (int idx = start; idx < end; ++idx) {
                 int tiled_col = sim.matrix.A_indexed.indices_[idx];
                 int8_t val = sim.matrix.A_indexed.data_[idx];
-                int16_t orig_row = sim.matrix.A_indexed.orig_row_[idx];
-                int16_t orig_col = sim.matrix.A_indexed.orig_col_[idx];
+                int32_t orig_row = sim.matrix.A_indexed.orig_row_[idx];
+                int32_t orig_col = sim.matrix.A_indexed.orig_col_[idx];
                 std::cout << "col[" << tiled_col << "]=" << static_cast<int>(val) 
                           << " (orig[" << orig_row << "," << orig_col << "])";
                 if (idx < end - 1) std::cout << ", ";
@@ -140,8 +140,8 @@ void test_sparse_4x4_functionality() {
             for (int idx = start; idx < end; ++idx) {
                 int tiled_col = sim.matrix.B_indexed.indices_[idx];
                 int8_t val = sim.matrix.B_indexed.data_[idx];
-                int16_t orig_row = sim.matrix.B_indexed.orig_row_[idx];
-                int16_t orig_col = sim.matrix.B_indexed.orig_col_[idx];
+                int32_t orig_row = sim.matrix.B_indexed.orig_row_[idx];
+                int32_t orig_col = sim.matrix.B_indexed.orig_col_[idx];
                 std::cout << "col[" << tiled_col << "]=" << static_cast<int>(val) 
                           << " (orig[" << orig_row << "," << orig_col << "])";
                 if (idx < end - 1) std::cout << ", ";
@@ -165,7 +165,7 @@ void test_sparse_4x4_functionality() {
         for (int i = 0; i < 4; ++i) {
             std::cout << "    [";
             for (int j = 0; j < 4; ++j) {
-                std::cout << sim.acc_output(i, j);
+                std::cout << sim.acc_output.get(i, j);
                 if (j < 3) std::cout << ", ";
             }
             std::cout << "]" << std::endl;

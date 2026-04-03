@@ -32,7 +32,7 @@ private:
 
     std::unique_ptr<CacheModel> cache_;
     std::queue<PendingRequest> pending_requests_;
-    int max_pending_ = 1024;  // Maximum outstanding requests (increased to avoid dropping)
+    int max_pending_ = 65536;  // Must be large enough to never drop requests
 };
 
 } // namespace csegfold

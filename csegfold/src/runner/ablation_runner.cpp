@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
 
             // Check if dense conversion is feasible
             int64_t dense_bytes = static_cast<int64_t>(rows) * cols;
-            if (dense_bytes > 500000000LL) {  // > 500M elements
+            if (dense_bytes > 600000000LL) {  // > 600M elements
                 std::cerr << "Error: Matrix too large for dense conversion ("
                           << rows << "x" << cols << " = " << dense_bytes << " bytes)" << std::endl;
                 std::cerr << "Maximum supported: ~22000x22000" << std::endl;
@@ -138,13 +138,46 @@ int main(int argc, char* argv[]) {
 
             std::cout << "  Converting to dense format..." << std::endl;
             A = csr_to_dense_matrix(csr);
-            B = csr_to_dense_matrix(csr);  // A = B for SuiteSparse (SpMM: A * A^T style)
 
+            // B = A^T (transpose CSR, then convert to dense)
+            CSRMatrix csr_t(cols, rows);
+            {
+                std::vector<int> row_counts(cols, 0);
+                for (int i = 0; i < rows; ++i) {
+                    int start = csr.indptr_[i];
+                    int end = csr.indptr_[i + 1];
+                    for (int idx = start; idx < end; ++idx) {
+                        row_counts[csr.indices_[idx]]++;
+                    }
+                }
+                csr_t.indptr_[0] = 0;
+                for (int i = 0; i < cols; ++i) {
+                    csr_t.indptr_[i + 1] = csr_t.indptr_[i] + row_counts[i];
+                }
+                csr_t.indices_.resize(csr.nnz());
+                csr_t.data_.resize(csr.nnz());
+                std::vector<int> pos(cols, 0);
+                for (int i = 0; i < cols; ++i) pos[i] = csr_t.indptr_[i];
+                for (int i = 0; i < rows; ++i) {
+                    int start = csr.indptr_[i];
+                    int end = csr.indptr_[i + 1];
+                    for (int idx = start; idx < end; ++idx) {
+                        int j = csr.indices_[idx];
+                        int p = pos[j]++;
+                        csr_t.indices_[p] = i;
+                        csr_t.data_[p] = csr.data_[idx];
+                    }
+                }
+            }
+            B = csr_to_dense_matrix(csr_t);
+            std::cout << "  B (=A^T): " << cols << "x" << rows << std::endl;
+
+            // C = A * B = A * A^T, so C is rows x rows
             // Override config with actual matrix size
             update_cfg({
                 {"M", std::to_string(rows)},
-                {"N", std::to_string(cols)},
                 {"K", std::to_string(cols)},
+                {"N", std::to_string(rows)},
             });
         } else {
             // Synthetic mode: generate random matrices

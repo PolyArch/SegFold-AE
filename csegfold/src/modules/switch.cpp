@@ -3,7 +3,6 @@
 #include "csegfold/modules/memoryController.hpp"
 #include <cassert>
 #include <algorithm>
-#include <iostream>
 
 namespace csegfold {
 

@@ -2,8 +2,10 @@
 #include <iostream>
 
 #ifdef CSEGFOLD_HAS_RAMULATOR2
-#include "ramulator2/src/frontend/frontend.h"
-#include "ramulator2/src/memory_system/memory_system.h"
+#include "base/factory.h"
+#include "base/request.h"
+#include "frontend/frontend.h"
+#include "memory_system/memory_system.h"
 #include <yaml-cpp/yaml.h>
 #endif
 
@@ -13,7 +15,13 @@ RamulatorBackend::RamulatorBackend() {
     // Configuration will be set by configure()
 }
 
-RamulatorBackend::~RamulatorBackend() = default;
+RamulatorBackend::~RamulatorBackend() {
+#ifdef CSEGFOLD_HAS_RAMULATOR2
+    // Ramulator2 objects are owned by the Factory; we don't delete them.
+    frontend_ = nullptr;
+    memory_system_ = nullptr;
+#endif
+}
 
 void RamulatorBackend::configure(const MemoryBackendConfig& config) {
     config_ = config;
@@ -41,14 +49,13 @@ void RamulatorBackend::configure(const MemoryBackendConfig& config) {
         try {
             YAML::Node dram_config = YAML::LoadFile(config.dram_config_file);
 
-            // Create memory system from config
-            // Note: This is a simplified initialization. The actual Ramulator2 API
-            // may vary depending on the version.
-            frontend_ = Ramulator::IFrontEnd::create_frontend(dram_config);
-            memory_system_ = Ramulator::IMemorySystem::create_memory_system(dram_config);
+            // Use Factory to create frontend and memory system
+            frontend_ = Ramulator::Factory::create_frontend(dram_config);
+            memory_system_ = Ramulator::Factory::create_memory_system(dram_config);
 
             if (frontend_ && memory_system_) {
-                frontend_->connect_memory_system(memory_system_.get());
+                frontend_->connect_memory_system(memory_system_);
+                memory_system_->connect_frontend(frontend_);
                 initialized_ = true;
             }
         } catch (const std::exception& e) {
@@ -62,6 +69,14 @@ void RamulatorBackend::configure(const MemoryBackendConfig& config) {
         // Fallback mode - will use simple DRAM timing
         std::cerr << "Using simple DRAM timing model (latency="
                   << config.dram_latency << " cycles)" << std::endl;
+    }
+
+    // Initialize MSHR / request coalescing filter
+    enable_filter_ = config.enable_filter && config.enable_outstanding_filter;
+    filter_cache_line_size_ = config.filter_cache_line_size;
+    if (enable_filter_) {
+        std::cerr << "MSHR request filter enabled (cache_line_size="
+                  << filter_cache_line_size_ << ")" << std::endl;
     }
 }
 
@@ -81,7 +96,19 @@ bool RamulatorBackend::submit_request(const MemoryRequest& req) {
         return false;
     }
 
-    // Check cache for loads
+    // --- Step 1: MSHR filter check (before cache) ---
+    if (enable_filter_ && req.type == MemoryRequestType::LOAD) {
+        uint64_t aligned = req.address & ~(uint64_t)(filter_cache_line_size_ - 1);
+        auto it = outstanding_addr_to_dram_id_.find(aligned);
+        if (it != outstanding_addr_to_dram_id_.end()) {
+            // Address already has pending DRAM request — coalesce
+            coalesced_requests_[it->second].push_back(req);
+            stats_.filter_coalesced++;
+            return true;
+        }
+    }
+
+    // --- Step 2: Cache check (only reached if NOT coalesced) ---
     if (req.type == MemoryRequestType::LOAD) {
         auto result = cache_->access(req.address);
 
@@ -119,7 +146,7 @@ bool RamulatorBackend::submit_request(const MemoryRequest& req) {
         stats_.l2_misses++;
     }
 
-    // Submit to DRAM
+    // --- Step 3: DRAM submission ---
     uint64_t internal_id = next_dram_req_id_++;
     int cache_latency = cache_->get_l1_latency() + cache_->get_l2_latency();
 
@@ -130,18 +157,35 @@ bool RamulatorBackend::submit_request(const MemoryRequest& req) {
     };
     pending_dram_requests_[internal_id] = pending;
 
+    // Track in MSHR outstanding map
+    if (enable_filter_) {
+        uint64_t aligned = req.address & ~(uint64_t)(filter_cache_line_size_ - 1);
+        outstanding_addr_to_dram_id_[aligned] = internal_id;
+        coalesced_requests_[internal_id] = {req};  // Initialize with first request
+    }
+
 #ifdef CSEGFOLD_HAS_RAMULATOR2
     if (initialized_) {
-        // Submit to Ramulator2
-        bool is_write = (req.type == MemoryRequestType::STORE);
-        frontend_->receive_request(
-            req.address,
-            is_write,
-            [this, internal_id](bool) {
+        // Submit to Ramulator2 via the GEM5-style external request interface
+        int type_id = (req.type == MemoryRequestType::STORE)
+                      ? Ramulator::Request::Type::Write
+                      : Ramulator::Request::Type::Read;
+        bool accepted = frontend_->receive_external_requests(
+            type_id,
+            static_cast<Ramulator::Addr_t>(req.address),
+            0,  // source_id
+            [this, internal_id](Ramulator::Request& /* completed_req */) {
                 this->handle_dram_completion(internal_id);
             }
         );
+        if (!accepted) {
+            // Request rejected by Ramulator2 (internal queue full).
+            // Buffer for retry on next tick instead of dropping.
+            retry_queue_.push({internal_id, static_cast<uint64_t>(req.address), type_id});
+        }
     } else {
+#else
+    {
 #endif
         // Simple DRAM model
         SimpleDramRequest simple{
@@ -149,49 +193,98 @@ bool RamulatorBackend::submit_request(const MemoryRequest& req) {
             current_cycle_ + config_.dram_latency
         };
         simple_dram_queue_.push(simple);
-#ifdef CSEGFOLD_HAS_RAMULATOR2
     }
-#endif
 
     stats_.dram_accesses++;
     return true;
 }
 
 #ifdef CSEGFOLD_HAS_RAMULATOR2
+void RamulatorBackend::drain_retry_queue() {
+    int retries = static_cast<int>(retry_queue_.size());
+    for (int i = 0; i < retries; ++i) {
+        auto& entry = retry_queue_.front();
+        uint64_t iid = entry.internal_id;
+        bool accepted = frontend_->receive_external_requests(
+            entry.type_id,
+            static_cast<Ramulator::Addr_t>(entry.address),
+            0,
+            [this, iid](Ramulator::Request& /* completed_req */) {
+                this->handle_dram_completion(iid);
+            }
+        );
+        if (accepted) {
+            retry_queue_.pop();
+        } else {
+            // Still rejected — stop retrying this tick (preserve FIFO order)
+            break;
+        }
+    }
+}
+
 void RamulatorBackend::handle_dram_completion(uint64_t internal_req_id) {
     auto it = pending_dram_requests_.find(internal_req_id);
     if (it == pending_dram_requests_.end()) {
         return;
     }
 
-    const auto& pending = it->second;
-    const auto& req = pending.request;
+    const auto& pending_entry = it->second;
+    const auto& req = pending_entry.request;
 
-    uint64_t total_latency = current_cycle_ - pending.submit_cycle + pending.cache_latency;
+    uint64_t total_latency = current_cycle_ - pending_entry.submit_cycle + pending_entry.cache_latency;
 
-    MemoryResponse response{
-        req.req_id,
-        total_latency,
-        req.data,
-        false,  // Not a cache hit
-        0,      // DRAM level
-        req.pe_row,
-        req.pe_col,
-        req.c_col,
-        req.dest,
-        req.matrix,
-        req.fifo_idx
-    };
-
-    // Fill cache on load completion
+    // Fill cache once on load completion
     if (req.type == MemoryRequestType::LOAD) {
         cache_->fill_from_dram(req.address);
     }
 
-    stats_.total_latency += total_latency;
-    stats_.total_requests++;
+    if (enable_filter_) {
+        // Fan out response to ALL coalesced requests
+        auto coal_it = coalesced_requests_.find(internal_req_id);
+        if (coal_it != coalesced_requests_.end()) {
+            for (const auto& orig_req : coal_it->second) {
+                MemoryResponse response{
+                    orig_req.req_id,
+                    total_latency,
+                    orig_req.data,
+                    false,
+                    0,
+                    orig_req.pe_row,
+                    orig_req.pe_col,
+                    orig_req.c_col,
+                    orig_req.dest,
+                    orig_req.matrix,
+                    orig_req.fifo_idx
+                };
+                stats_.total_latency += total_latency;
+                stats_.total_requests++;
+                completed_responses_.push(response);
+            }
+            coalesced_requests_.erase(coal_it);
+        }
+        // Clean outstanding address map
+        uint64_t aligned = req.address & ~(uint64_t)(filter_cache_line_size_ - 1);
+        outstanding_addr_to_dram_id_.erase(aligned);
+    } else {
+        // Original single-response path
+        MemoryResponse response{
+            req.req_id,
+            total_latency,
+            req.data,
+            false,
+            0,
+            req.pe_row,
+            req.pe_col,
+            req.c_col,
+            req.dest,
+            req.matrix,
+            req.fifo_idx
+        };
+        stats_.total_latency += total_latency;
+        stats_.total_requests++;
+        completed_responses_.push(response);
+    }
 
-    completed_responses_.push(response);
     pending_dram_requests_.erase(it);
 }
 #endif
@@ -201,9 +294,13 @@ std::vector<MemoryResponse> RamulatorBackend::tick() {
 
 #ifdef CSEGFOLD_HAS_RAMULATOR2
     if (initialized_) {
+        // Retry previously rejected DRAM requests before ticking
+        drain_retry_queue();
         // Tick Ramulator2
         memory_system_->tick();
     } else {
+#else
+    {
 #endif
         // Simple DRAM model - check for completions
         while (!simple_dram_queue_.empty() &&
@@ -213,39 +310,64 @@ std::vector<MemoryResponse> RamulatorBackend::tick() {
 
             auto it = pending_dram_requests_.find(internal_id);
             if (it != pending_dram_requests_.end()) {
-                const auto& pending = it->second;
-                const auto& req = pending.request;
+                const auto& pending_entry = it->second;
+                const auto& req = pending_entry.request;
 
-                uint64_t total_latency = current_cycle_ - pending.submit_cycle + pending.cache_latency;
-
-                MemoryResponse response{
-                    req.req_id,
-                    total_latency,
-                    req.data,
-                    false,
-                    0,
-                    req.pe_row,
-                    req.pe_col,
-                    req.c_col,
-                    req.dest,
-                    req.matrix,
-                    req.fifo_idx
-                };
+                uint64_t total_latency = current_cycle_ - pending_entry.submit_cycle + pending_entry.cache_latency;
 
                 if (req.type == MemoryRequestType::LOAD) {
                     cache_->fill_from_dram(req.address);
                 }
 
-                stats_.total_latency += total_latency;
-                stats_.total_requests++;
+                if (enable_filter_) {
+                    // Fan out response to ALL coalesced requests
+                    auto coal_it = coalesced_requests_.find(internal_id);
+                    if (coal_it != coalesced_requests_.end()) {
+                        for (const auto& orig_req : coal_it->second) {
+                            MemoryResponse response{
+                                orig_req.req_id,
+                                total_latency,
+                                orig_req.data,
+                                false,
+                                0,
+                                orig_req.pe_row,
+                                orig_req.pe_col,
+                                orig_req.c_col,
+                                orig_req.dest,
+                                orig_req.matrix,
+                                orig_req.fifo_idx
+                            };
+                            stats_.total_latency += total_latency;
+                            stats_.total_requests++;
+                            completed_responses_.push(response);
+                        }
+                        coalesced_requests_.erase(coal_it);
+                    }
+                    uint64_t aligned = req.address & ~(uint64_t)(filter_cache_line_size_ - 1);
+                    outstanding_addr_to_dram_id_.erase(aligned);
+                } else {
+                    MemoryResponse response{
+                        req.req_id,
+                        total_latency,
+                        req.data,
+                        false,
+                        0,
+                        req.pe_row,
+                        req.pe_col,
+                        req.c_col,
+                        req.dest,
+                        req.matrix,
+                        req.fifo_idx
+                    };
+                    stats_.total_latency += total_latency;
+                    stats_.total_requests++;
+                    completed_responses_.push(response);
+                }
 
-                completed_responses_.push(response);
                 pending_dram_requests_.erase(it);
             }
         }
-#ifdef CSEGFOLD_HAS_RAMULATOR2
     }
-#endif
 
     // Collect all completed responses
     while (!completed_responses_.empty()) {

@@ -14,6 +14,16 @@ MemoryController::MemoryController(MatrixLoader* matrix) : BaseModule(), matrix(
     lptr = 0;
     ready_to_evict = std::vector<bool>(prows(), false);
     fill_b_loader_window();
+
+    // Initialize per-PE-row tile tracking for tile pipelining
+    pe_row_tile_id = std::vector<int>(prows(), 0);
+    if (cfg.enable_tile_pipeline && !active_indices.empty()) {
+        int first_tile = active_indices[0] / matrix->K;
+        for (int i = 0; i < prows(); ++i) {
+            pe_row_tile_id[i] = first_tile;
+        }
+    }
+
     n_completed_rows = 0;
     
     for (const auto& [r, l] : B_csr) {
@@ -41,30 +51,50 @@ MemoryController::MemoryController(MatrixLoader* matrix) : BaseModule(), matrix(
 
 void MemoryController::filter_intersections() {
     B_rows_to_load.clear();
-    // Match Python behavior: check intersections with PE rows (0 to prows-1)
-    // Python: any(self.matrix.intersect_bc(r, i) for i in range(self.prows))
-    // B_csr is built from tiled B matrix, so it should have 16 rows (8 original × 2 tiles)
+    std::vector<std::pair<int, int>> rows_with_demand;  // (row_id, demand_count)
+
+    b_row_demand_hist.clear();
     for (const auto& [r, l] : B_csr) {
         if (l.empty()) continue;
-        bool has_intersection = false;
-        for (int i = 0; i < prows(); ++i) {
-            bool intersects = matrix->intersect_bc(r, i);
-            if (intersects) {
-                has_intersection = true;
-                break;
-            }
+        if (!cfg.enable_filter_intersection) {
+            // No filtering: load all non-empty B rows, demand = prows (all PE rows)
+            rows_with_demand.push_back({r, prows()});
+            b_row_demand_hist[prows()]++;
+            continue;
         }
-        if (has_intersection) {
-            B_rows_to_load.push_back(r);
+        int demand = 0;
+        for (int i = 0; i < prows(); ++i) {
+            if (matrix->intersect_bc(r, i)) demand++;
+        }
+        b_row_demand_hist[demand]++;
+        if (demand > 0) {
+            rows_with_demand.push_back({r, demand});
         }
     }
-    // Sort B_rows_to_load to ensure rows are processed in order (0, 1, 2, ...)
-    std::sort(B_rows_to_load.begin(), B_rows_to_load.end());
-    
+
+    if (cfg.b_row_scheduling == "demand") {
+        // Sort by tile block (preserve tile eviction order), then demand desc within block
+        int K = matrix->K;
+        std::sort(rows_with_demand.begin(), rows_with_demand.end(),
+            [K](const auto& a, const auto& b) {
+                int ba = a.first / K, bb = b.first / K;
+                if (ba != bb) return ba < bb;
+                return a.second > b.second;
+            });
+    } else {
+        // Default: sort by row ID
+        std::sort(rows_with_demand.begin(), rows_with_demand.end());
+    }
+
+    for (const auto& [r, d] : rows_with_demand) {
+        B_rows_to_load.push_back(r);
+    }
+
     if (cfg.verbose) {
         std::ostringstream oss;
-        oss << "[filter_intersections] Found " << B_rows_to_load.size() 
-            << " B rows with intersections (out of " << B_csr.size() << " total B rows)";
+        oss << "[filter_intersections] Found " << B_rows_to_load.size()
+            << " B rows with intersections (out of " << B_csr.size() << " total B rows)"
+            << ", scheduling=" << cfg.b_row_scheduling;
         log->info(oss.str());
     }
     // Always log for debugging
@@ -88,7 +118,21 @@ std::pair<bool, bool> MemoryController::check_b_loader_tile(int r) {
         if (max_r == -1) {
             return {true, true};
         } else {
-            return {matrix->b_is_same_block(r, max_r), false};
+            if (matrix->b_is_same_block(r, max_r)) {
+                return {true, false};
+            } else if (cfg.enable_tile_pipeline) {
+                // Allow next tile with eviction, limited to 2-tile straddling
+                std::unordered_set<int> tile_blocks;
+                for (int idx : active_indices) {
+                    tile_blocks.insert(idx / matrix->K);
+                }
+                if (tile_blocks.size() < 2) {
+                    return {true, true};
+                }
+                return {false, false};
+            } else {
+                return {false, false};
+            }
         }
     }
 }
@@ -128,7 +172,7 @@ void MemoryController::remove_completed_rows(const std::unordered_set<int>& comp
             [&completed_rows](int r) { return completed_rows.find(r) != completed_rows.end(); }),
         active_indices.end()
     );
-    
+
     fill_b_loader_window();
 }
 
@@ -184,6 +228,9 @@ MemoryBackendConfig MemoryController::create_backend_config() const {
     backend_cfg.l2_latency = cfg.l2_latency;
     backend_cfg.ideal_latency = cfg.ideal_dram_latency;
     backend_cfg.dram_latency = cfg.ideal_dram_latency;
+    backend_cfg.enable_filter = cfg.enable_filter;
+    backend_cfg.enable_outstanding_filter = cfg.enable_outstanding_filter;
+    backend_cfg.filter_cache_line_size = cfg.cache_line_size;
     return backend_cfg;
 }
 
@@ -231,23 +278,23 @@ void MemoryController::filter_requests() {
 }
 
 int MemoryController::get_a_element_pointer(int m, int k) const {
-    int offset;
-    if (cfg.enable_a_csc) {
-        offset = matrix->A_nnz_offset(k, m);
-    } else {
-        offset = matrix->A_nnz_offset(m, k);
-    }
-    return cfg.a_pointer_offset + offset;
+    int offset = matrix->A_nnz_offset_get(
+        cfg.enable_a_csc ? k : m,
+        cfg.enable_a_csc ? m : k
+    );
+    return cfg.a_pointer_offset + offset * cfg.element_size;
 }
 
 int MemoryController::get_b_element_pointer(int k, int n) const {
-    int offset = matrix->B_nnz_offset(k, n);
-    return cfg.b_pointer_offset + offset;
+    int offset = matrix->B_nnz_offset_get(k, n);
+    return cfg.b_pointer_offset + offset * cfg.element_size;
 }
 
 int MemoryController::get_c_element_pointer(int m, int n) const {
-    int offset = matrix->C_nnz_offset(m, n);
-    return cfg.c_pointer_offset + offset;
+    int64_t key = static_cast<int64_t>(m) * matrix->N + n;
+    auto it = matrix->C_nnz_offset.find(key);
+    int offset = (it != matrix->C_nnz_offset.end()) ? it->second : 0;
+    return cfg.c_pointer_offset + offset * cfg.element_size;
 }
 
 void MemoryController::submit_load_request(int m, int k, const std::string& type,
@@ -264,7 +311,7 @@ void MemoryController::submit_load_request(int m, int k, const std::string& type
         address = get_a_element_pointer(m, k);
         matrix_type = MatrixType::A;
     } else if (type == "b" || type == "B") {
-        address = get_b_element_pointer(k, m);  // Note: B uses (k, n) format
+        address = get_b_element_pointer(m, k);  // B(k,n): m=orig_row=k-dim, k=orig_col=n-dim
         matrix_type = MatrixType::B;
     } else if (type == "c" || type == "C") {
         address = get_c_element_pointer(m, k);
@@ -284,10 +331,10 @@ void MemoryController::submit_load_request(int m, int k, const std::string& type
     req.fifo_idx = fifo_idx;
     req.submit_cycle = static_cast<uint64_t>(cycle());
 
-    if (memory_backend_->can_accept()) {
-        memory_backend_->submit_request(req);
-        pending_requests_[req.req_id] = req;
-    }
+    assert(memory_backend_->can_accept() &&
+           "Memory backend cannot accept request - increase max_pending_ or add backpressure");
+    memory_backend_->submit_request(req);
+    pending_requests_[req.req_id] = req;
 }
 
 void MemoryController::submit_store_request(int addr, int val) {
@@ -348,6 +395,7 @@ void MemoryController::tick_memory_backend() {
     stats.l2_hits = mem_stats.l2_hits;
     stats.l2_misses = mem_stats.l2_misses;
     stats.dram_accesses = mem_stats.dram_accesses;
+    stats.filter_coalesced = mem_stats.filter_coalesced;
     stats.avg_memory_latency = mem_stats.avg_memory_latency();
 }
 
@@ -363,6 +411,13 @@ std::vector<MemoryResponse> MemoryController::get_completed_responses() {
 
 bool MemoryController::has_pending_requests() const {
     return !pending_requests_.empty();
+}
+
+bool MemoryController::memory_can_accept() const {
+    if (!enable_memory_hierarchy || !memory_backend_) {
+        return true;
+    }
+    return memory_backend_->can_accept();
 }
 
 void MemoryController::set_deferred_responses(std::vector<MemoryResponse>&& responses) {

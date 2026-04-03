@@ -8,12 +8,14 @@
 #include <numeric>
 #include <sstream>
 #include <vector>
-#include <iostream>
 
 namespace csegfold {
 
+// Reason codes for b_row_is_valid failure
+enum class BRowSkipReason { NONE = 0, EVICTION = 1, B_LOADED = 2, NO_CAPACITY = 3 };
+
 // Helper function: b_row_is_valid
-static std::tuple<bool, int, int> b_row_is_valid(MemoryController* controller, SwitchModule* switchModule, int r) {
+static std::tuple<bool, int, int, BRowSkipReason> b_row_is_valid(MemoryController* controller, SwitchModule* switchModule, int r) {
     int c_start = (controller->cfg.enable_partial_b_load) ? controller->b_loader_offset[r] : 0;
     int c_end = controller->b_loader_limit[r];
 
@@ -22,10 +24,18 @@ static std::tuple<bool, int, int> b_row_is_valid(MemoryController* controller, S
             continue;
         }
         if (controller->cfg.enable_tile_eviction && controller->ready_to_evict[i]) {
-            return {false, 0, 0};
+            if (controller->cfg.enable_tile_pipeline) {
+                // Allow B rows from the PE row's current tile even during eviction
+                int b_tile = r / controller->matrix->K;
+                if (b_tile != controller->pe_row_tile_id[i]) {
+                    return {false, 0, 0, BRowSkipReason::EVICTION};
+                }
+            } else {
+                return {false, 0, 0, BRowSkipReason::EVICTION};
+            }
         }
         if (switchModule->b_loaded[i] && controller->cfg.disable_multi_b_row_per_row) {
-            return {false, 0, 0};
+            return {false, 0, 0, BRowSkipReason::B_LOADED};
         }
         int start_j = switchModule->get_start_offset(controller, r, c_start, i);
         assert(start_j < switchModule->mapper.get_row_length(i));
@@ -34,11 +44,11 @@ static std::tuple<bool, int, int> b_row_is_valid(MemoryController* controller, S
             if (controller->cfg.enable_partial_b_load) {
                 c_end = std::min(c_end, load_length + c_start);
             } else {
-                return {false, 0, 0};
+                return {false, 0, 0, BRowSkipReason::NO_CAPACITY};
             }
         }
     }
-    return {c_start != c_end, c_start, c_end};
+    return {c_start != c_end, c_start, c_end, BRowSkipReason::NONE};
 }
 
 // Helper function: update_switch_with_b_data
@@ -157,8 +167,6 @@ static std::tuple<bool, int, int> load_b_row(MemoryController* controller, Switc
         }
     }
 
-    assert(issued_b_loads > 0);
-
     bool row_complete;
     if (!controller->cfg.enable_partial_b_load) {
         row_complete = true;
@@ -180,8 +188,10 @@ static void record_b_row_stats(Simulator* simulator, const std::vector<int>& val
         }
         b_rows_diff = std::accumulate(diffs.begin(), diffs.end(), 0.0) / static_cast<double>(diffs.size());
     }
-    simulator->stats.trace_b_rows.push_back(static_cast<double>(num_valid_b_rows));
-    simulator->stats.trace_b_rows.push_back(b_rows_diff);
+    if (simulator->cfg.save_stats_trace) {
+        simulator->stats.trace_b_rows.push_back(static_cast<double>(num_valid_b_rows));
+        simulator->stats.trace_b_rows.push_back(b_rows_diff);
+    }
     simulator->current_cycle_b_loads = issued_b_loads;
 }
 
@@ -196,7 +206,7 @@ static bool process_b_row(Simulator* simulator, MemoryController* controller, Sw
         }
     }
 
-    auto [load_valid, c_start, c_end] = b_row_is_valid(controller, switchModule, r);
+    auto [load_valid, c_start, c_end, skip_reason] = b_row_is_valid(controller, switchModule, r);
     if (should_debug && controller->debug()) {
         std::ostringstream oss;
         oss << "[B_loader] Cycle " << controller->cycle()
@@ -206,6 +216,13 @@ static bool process_b_row(Simulator* simulator, MemoryController* controller, Sw
     }
 
     if (!load_valid) {
+        // Track skip reason
+        switch (skip_reason) {
+            case BRowSkipReason::EVICTION:    simulator->stats.b_row_skip_eviction++; break;
+            case BRowSkipReason::B_LOADED:    simulator->stats.b_row_skip_b_loaded++; break;
+            case BRowSkipReason::NO_CAPACITY: simulator->stats.b_row_skip_no_capacity++; break;
+            default: break;
+        }
         return simulator->cfg.enable_b_row_reordering;  // Continue if reordering enabled
     }
 
@@ -296,6 +313,10 @@ void run_b_loader(Simulator* simulator, MemoryController* controller, SwitchModu
             }
         }
     }
+
+    // Track per-cycle B loader stats
+    simulator->stats.sum_b_rows_loaded_per_cycle += loaded_b_rows;
+    simulator->stats.sum_active_indices_per_cycle += static_cast<int>(controller->active_indices.size());
 
     record_b_row_stats(simulator, valid_b_rows, issued_b_loads);
     controller->remove_completed_rows(completed_rows);

@@ -29,6 +29,11 @@ struct MemoryBackendConfig {
 
     // DRAM parameters (used when ramulator2 not available)
     int dram_latency = 100;
+
+    // Request filter (MSHR)
+    bool enable_filter = false;
+    bool enable_outstanding_filter = false;
+    int filter_cache_line_size = 32;
 };
 
 struct MemoryStats {
@@ -39,6 +44,7 @@ struct MemoryStats {
     uint64_t dram_accesses = 0;
     uint64_t total_latency = 0;
     uint64_t total_requests = 0;
+    uint64_t filter_coalesced = 0;
 
     double avg_memory_latency() const {
         return total_requests > 0 ?
@@ -53,6 +59,7 @@ struct MemoryStats {
         dram_accesses = 0;
         total_latency = 0;
         total_requests = 0;
+        filter_coalesced = 0;
     }
 };
 

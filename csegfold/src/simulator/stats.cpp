@@ -20,7 +20,12 @@ void Simulator::record_utilization() {
 void Simulator::record_b_elements_on_switch() {
     // Track the number of B elements loaded onto the switch this cycle
     // This value is set by run_b_loader() based on issued_b_loads
-    stats.trace_b_elements_on_switch.push_back(current_cycle_b_loads);
+    if (cfg.save_stats_trace) {
+        stats.trace_b_elements_on_switch.push_back(current_cycle_b_loads);
+    }
+    // Always update running sum for average computation
+    stats.avg_b_elements_on_switch += current_cycle_b_loads;
+    stats.b_loads_per_cycle_hist[current_cycle_b_loads]++;
 }
 
 void Simulator::record_pes_waiting_spad() {
@@ -42,7 +47,11 @@ void Simulator::record_pes_waiting_spad() {
             }
         }
     }
-    stats.trace_pes_waiting_spad.push_back(count);
+    if (cfg.save_stats_trace) {
+        stats.trace_pes_waiting_spad.push_back(count);
+    }
+    // Always update running sum for average computation
+    stats.avg_pes_waiting_spad += count;
 }
 
 void Simulator::record_pes_fifo_empty_stall() {
@@ -112,24 +121,38 @@ void Simulator::final_b_rows() {
 }
 
 void Simulator::final_b_elements_on_switch() {
-    if (cycle() > 0 && !stats.trace_b_elements_on_switch.empty()) {
-        double sum = 0;
-        for (int val : stats.trace_b_elements_on_switch) {
-            sum += val;
+    if (cycle() > 0) {
+        if (!stats.trace_b_elements_on_switch.empty()) {
+            // Recompute from trace (overwrites running sum)
+            double sum = 0;
+            stats.b_loads_per_cycle_hist.clear();
+            for (int val : stats.trace_b_elements_on_switch) {
+                sum += val;
+                stats.b_loads_per_cycle_hist[val]++;
+            }
+            stats.avg_b_elements_on_switch = sum / cycle();
+        } else {
+            // Use running sum accumulated in record_b_elements_on_switch
+            stats.avg_b_elements_on_switch = stats.avg_b_elements_on_switch / cycle();
         }
-        stats.avg_b_elements_on_switch = sum / cycle();
     } else {
         stats.avg_b_elements_on_switch = 0;
     }
 }
 
 void Simulator::final_pes_waiting_spad() {
-    if (cycle() > 0 && !stats.trace_pes_waiting_spad.empty()) {
-        double sum = 0;
-        for (int val : stats.trace_pes_waiting_spad) {
-            sum += val;
+    if (cycle() > 0) {
+        if (!stats.trace_pes_waiting_spad.empty()) {
+            // Recompute from trace (overwrites running sum)
+            double sum = 0;
+            for (int val : stats.trace_pes_waiting_spad) {
+                sum += val;
+            }
+            stats.avg_pes_waiting_spad = sum / cycle();
+        } else {
+            // Use running sum accumulated in record_pes_waiting_spad
+            stats.avg_pes_waiting_spad = stats.avg_pes_waiting_spad / cycle();
         }
-        stats.avg_pes_waiting_spad = sum / cycle();
     } else {
         stats.avg_pes_waiting_spad = 0;
     }
@@ -163,6 +186,30 @@ void analyze_idle_switches(Simulator* simulator, SwitchModule* switchModule) {
     if (switchModule->row_load_info.empty()) {
         return;
     }
+
+    // Track B row load length stats and PE row loading count (once per cycle)
+    int pe_rows_with_load = 0;
+    for (int i = 0; i < switchModule->vrows(); ++i) {
+        // Count total B elements loaded on this PE row this cycle
+        int pe_row_b_count = 0;
+        if (!switchModule->row_load_info[i].empty()) {
+            pe_rows_with_load++;
+        }
+        for (const auto& info : switchModule->row_load_info[i]) {
+            simulator->stats.b_row_load_count++;
+            simulator->stats.b_row_total_potential += info.potential_load_space;
+            simulator->stats.b_row_total_actual += info.actual_b_elements;
+            simulator->stats.b_row_length_hist[info.actual_b_elements]++;
+            pe_row_b_count += info.actual_b_elements;
+            if (info.row_complete && info.actual_b_elements < info.potential_load_space) {
+                simulator->stats.b_row_tail_events++;
+            }
+        }
+        simulator->stats.b_loads_per_pe_row_hist[pe_row_b_count]++;
+    }
+    simulator->stats.sum_pe_rows_with_b_load += pe_rows_with_load;
+    simulator->stats.pe_row_load_cycles++;
+
     for (int i = 0; i < switchModule->vrows(); ++i) {
         const auto& load_info = switchModule->row_load_info[i];
         int row_len = switchModule->mapper.get_effective_row_length(i);
@@ -173,6 +220,8 @@ void analyze_idle_switches(Simulator* simulator, SwitchModule* switchModule) {
             }
             if (load_info.empty()) {
                 simulator->stats.sw_idle_no_b_element++;
+                simulator->stats.sw_idle_no_b_row++;
+                simulator->stats.sw_idle_pe_row_no_b_row++;
                 continue;
             }
             bool categorized = false;
@@ -181,6 +230,8 @@ void analyze_idle_switches(Simulator* simulator, SwitchModule* switchModule) {
                     if (j >= info.start_j + info.actual_b_elements) {
                         if (info.row_complete) {
                             simulator->stats.sw_idle_no_b_element++;
+                            simulator->stats.sw_idle_b_row_tail++;
+                            simulator->stats.sw_idle_pe_row_b_short++;
                         } else {
                             simulator->stats.sw_idle_b_row_conflict++;
                         }
@@ -192,6 +243,7 @@ void analyze_idle_switches(Simulator* simulator, SwitchModule* switchModule) {
 
             if (!categorized) {
                 simulator->stats.sw_idle_not_in_range++;
+                simulator->stats.sw_idle_pe_row_not_in_range++;
             }
         }
     }

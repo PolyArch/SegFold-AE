@@ -41,7 +41,7 @@ static void handle_pe_load_state(Simulator* simulator, PEModule* peModule, int i
     next_pe.update(pe);
 
     bool valid_a;
-    if (!simulator->cfg.enable_memory_hierarchy) {
+    if (!simulator->cfg.enable_memory_hierarchy || simulator->cfg.bypass_a_memory_hierarchy) {
         valid_a = pe_load_done(pe, peModule->cycle());
     } else {
         valid_a = peModule->valid_a[i][j];
@@ -108,7 +108,7 @@ static void handle_pe_mac_state(Simulator* simulator, PEModule* peModule, int i,
         assert(row_idx >= 0 && row_idx < simulator->matrix.M &&
                col_idx >= 0 && col_idx < simulator->matrix.N &&
                "PE invalid acc_output indices");
-        simulator->acc_output(row_idx, col_idx) += product;
+        simulator->acc_output.accumulate(row_idx, col_idx, product);
         peModule->free_next_b_val(i, j);
 
         if (simulator->cfg.enable_sw_pe_fifo &&

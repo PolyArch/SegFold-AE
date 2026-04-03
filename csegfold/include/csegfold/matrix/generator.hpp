@@ -7,6 +7,8 @@
 #include <optional>
 #include <stdexcept>
 #include <tuple>
+#include <unordered_map>
+#include <functional>
 #include <indicators/progress_bar.hpp>
 
 namespace csegfold {
@@ -81,8 +83,8 @@ public:
     int nnz() const { return static_cast<int>(data_.size()); }
     
     // Access elements (returns value and original coordinates)
-    std::tuple<int8_t, int16_t, int16_t> get(int row, int col) const;
-    
+    std::tuple<int8_t, int32_t, int32_t> get(int row, int col) const;
+
     // Get original coordinates for a non-zero at (row, col)
     std::pair<int, int> get_original_coords(int row, int col) const;
     
@@ -100,8 +102,52 @@ public:
     std::vector<int> indptr_;      // Row pointers (rows_ + 1 elements)
     std::vector<int> indices_;     // Column indices in tiled space
     std::vector<int8_t> data_;     // Actual values
-    std::vector<int16_t> orig_row_; // Original row index (parallel to data_)
-    std::vector<int16_t> orig_col_; // Original column index (parallel to data_)
+    std::vector<int32_t> orig_row_; // Original row index (parallel to data_)
+    std::vector<int32_t> orig_col_; // Original column index (parallel to data_)
+};
+
+// Sparse accumulator for large output matrices — avoids M×N dense allocation
+class SparseAccumulator {
+public:
+    SparseAccumulator() : rows_(0), cols_(0) {}
+    SparseAccumulator(int rows, int cols) : rows_(rows), cols_(cols) {}
+
+    void accumulate(int row, int col, int64_t value) {
+        int64_t key = static_cast<int64_t>(row) * cols_ + col;
+        data_[key] += value;
+    }
+
+    int64_t get(int row, int col) const {
+        int64_t key = static_cast<int64_t>(row) * cols_ + col;
+        auto it = data_.find(key);
+        return it != data_.end() ? it->second : 0;
+    }
+
+    int rows() const { return rows_; }
+    int cols() const { return cols_; }
+
+    void for_each(const std::function<void(int row, int col, int64_t val)>& fn) const {
+        for (const auto& [key, val] : data_) {
+            if (val != 0) {
+                int row = static_cast<int>(key / cols_);
+                int col = static_cast<int>(key % cols_);
+                fn(row, col, val);
+            }
+        }
+    }
+
+    int nnz() const {
+        int count = 0;
+        for (const auto& [key, val] : data_) {
+            if (val != 0) count++;
+        }
+        return count;
+    }
+
+private:
+    int rows_;
+    int cols_;
+    std::unordered_map<int64_t, int64_t> data_;
 };
 
 // Matrix template class for dense matrices
@@ -158,6 +204,7 @@ CSRMatrix load_mtx_to_csr(const std::string& filepath, bool binary = true);
 Matrix<int8_t> csr_to_dense_matrix(const CSRMatrix& csr);
 void save_mtx_matrix(const Matrix<int8_t>& mat, const std::string& filepath);
 Matrix<int32_t> sparse_multiply(const CSRMatrix& A_csr, const CSRMatrix& B_csr);
+CSRMatrix sparse_multiply_csr(const CSRMatrix& A_csr, const CSRMatrix& B_csr);
 
 // Implementation of template methods
 template<typename T>

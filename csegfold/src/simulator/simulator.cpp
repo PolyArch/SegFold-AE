@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cstdlib>
 #include <sys/stat.h>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 namespace csegfold {
@@ -49,7 +49,7 @@ Simulator::Simulator(const Matrix<int8_t>& A, const Matrix<int8_t>& B)
         init_fifo();
     }
     
-    acc_output = Matrix<int64_t>(matrix.M, matrix.N, 0);
+    acc_output = SparseAccumulator(matrix.M, matrix.N);
     snapshot.clear();
     trace.clear();
     stats.success = true;
@@ -59,34 +59,63 @@ Simulator::Simulator(const Matrix<int8_t>& A, const Matrix<int8_t>& B)
     stats.c_nnz = 0;
 }
 
+Simulator::Simulator(const CSRMatrix& A_csr, const CSRMatrix& B_csr)
+    : BaseModule(), matrix(A_csr, B_csr), peModule(), switchModule(), spadModule(), controller(&matrix) {
+
+    if (cfg.use_lookup_table) {
+        if (cfg.reverse_lookup_table) {
+            lut = std::make_unique<ReverseLookUpTable>();
+        } else {
+            lut = std::make_unique<LookUpTable>();
+        }
+        switchModule.lut = lut.get();
+    }
+
+    success = true;
+
+    profile_AB();
+    record_profiling_data();
+
+    if (!cfg.enable_dynamic_scheduling) {
+        record_metadata_for_profiling_C();
+    }
+
+    if (cfg.enable_sw_pe_fifo) {
+        init_fifo();
+    }
+
+    acc_output = SparseAccumulator(matrix.M, matrix.N);
+    snapshot.clear();
+    trace.clear();
+    stats.success = true;
+
+    stats.a_nnz = matrix.A_indexed.nnz();
+    stats.b_nnz = matrix.B_indexed.nnz();
+    stats.c_nnz = 0;
+}
+
 Simulator::~Simulator() = default;
 
 void Simulator::profile_AB() {
-    if (matrix.denseA.has_value()) {
-        a_row_idx_w = _idx_w(matrix.denseA.value().rows());
-        a_col_idx_w = _idx_w(matrix.denseA.value().cols());
-        b_row_idx_w = _idx_w(matrix.denseB.value().rows());
-        b_col_idx_w = _idx_w(matrix.denseB.value().cols());
-    } else {
-        a_row_idx_w = _idx_w(matrix.A.rows());
-        a_col_idx_w = _idx_w(matrix.A.cols());
-        b_row_idx_w = _idx_w(matrix.B.rows());
-        b_col_idx_w = _idx_w(matrix.B.cols());
-    }
+    int a_rows = matrix.A.rows() > 0 ? matrix.A.rows() : matrix.A_orig_csr.rows_;
+    int a_cols = matrix.A.cols() > 0 ? matrix.A.cols() : matrix.A_orig_csr.cols_;
+    int b_rows = matrix.B.rows() > 0 ? matrix.B.rows() : matrix.B_orig_csr.rows_;
+    int b_cols = matrix.B.cols() > 0 ? matrix.B.cols() : matrix.B_orig_csr.cols_;
+    a_row_idx_w = _idx_w(a_rows);
+    a_col_idx_w = _idx_w(a_cols);
+    b_row_idx_w = _idx_w(b_rows);
+    b_col_idx_w = _idx_w(b_cols);
 }
 
 void Simulator::record_profiling_data() {
-    if (matrix.denseA.has_value()) {
-        stats.metadata["A rows"] = std::to_string(matrix.denseA.value().rows());
-        stats.metadata["A cols"] = std::to_string(matrix.denseA.value().cols());
-        stats.metadata["B rows"] = std::to_string(matrix.denseB.value().rows());
-        stats.metadata["B cols"] = std::to_string(matrix.denseB.value().cols());
-    } else {
-        stats.metadata["A rows"] = std::to_string(matrix.A.rows());
-        stats.metadata["A cols"] = std::to_string(matrix.A.cols());
-        stats.metadata["B rows"] = std::to_string(matrix.B.rows());
-        stats.metadata["B cols"] = std::to_string(matrix.B.cols());
-    }
+    int a_rows = matrix.A.rows() > 0 ? matrix.A.rows() : matrix.A_orig_csr.rows_;
+    int a_cols = matrix.A.cols() > 0 ? matrix.A.cols() : matrix.A_orig_csr.cols_;
+    int b_rows = matrix.B.rows() > 0 ? matrix.B.rows() : matrix.B_orig_csr.rows_;
+    int b_cols = matrix.B.cols() > 0 ? matrix.B.cols() : matrix.B_orig_csr.cols_;
+    stats.metadata["A rows"] = std::to_string(a_rows);
+    stats.metadata["A cols"] = std::to_string(a_cols);
+    stats.metadata["B rows"] = std::to_string(b_rows);
+    stats.metadata["B cols"] = std::to_string(b_cols);
     stats.metadata["a_row_idx_w"] = std::to_string(a_row_idx_w);
     stats.metadata["a_col_idx_w"] = std::to_string(a_col_idx_w);
     stats.metadata["b_row_idx_w"] = std::to_string(b_row_idx_w);
@@ -204,7 +233,7 @@ void Simulator::load_a_from_fifo_to_pe(int i, int j, MemoryController* controlle
     // Use original A matrix to get the value, not the tiled one
     int val = 0;
     if (orig_idx_a.first >= 0 && orig_idx_a.second >= 0) {
-        val = controller->matrix->A_orig(orig_idx_a.first, orig_idx_a.second);
+        val = controller->matrix->A_orig_csr.get(orig_idx_a.first, orig_idx_a.second);
     }
     
     next_pe.status = PEStatus::LOAD;
@@ -234,7 +263,7 @@ void Simulator::load_a_from_fifo_to_pe(int i, int j, MemoryController* controlle
         controller->log->info(oss.str());
     }
     
-    if (controller->cfg.enable_memory_hierarchy) {
+    if (controller->cfg.enable_memory_hierarchy && !controller->cfg.bypass_a_memory_hierarchy) {
         controller->submit_load_request(orig_idx_a.first, orig_idx_a.second, "A", i, j, "pe", c_col);
     }
 }
@@ -324,10 +353,10 @@ bool Simulator::store_is_done() const {
 bool Simulator::check_output(const Matrix<int8_t>& cpu_output) const {
     for (int i = 0; i < matrix.M; ++i) {
         for (int j = 0; j < matrix.N; ++j) {
-            if (acc_output(i, j) != cpu_output(i, j)) {
+            if (acc_output.get(i, j) != cpu_output(i, j)) {
                 if (cfg.verbose) {
                     std::cerr << "Output mismatch at (" << i << ", " << j << "): "
-                              << acc_output(i, j) << " != " << cpu_output(i, j) << std::endl;
+                              << acc_output.get(i, j) << " != " << cpu_output(i, j) << std::endl;
                 }
                 return false;
             }
@@ -340,10 +369,10 @@ bool Simulator::check_output(const Matrix<int8_t>& cpu_output) const {
 bool Simulator::check_output(const Matrix<int>& cpu_output) const {
     for (int i = 0; i < matrix.M; ++i) {
         for (int j = 0; j < matrix.N; ++j) {
-            if (acc_output(i, j) != cpu_output(i, j)) {
+            if (acc_output.get(i, j) != cpu_output(i, j)) {
                 if (cfg.verbose) {
                     std::cerr << "Output mismatch at (" << i << ", " << j << "): "
-                              << acc_output(i, j) << " != " << cpu_output(i, j) << std::endl;
+                              << acc_output.get(i, j) << " != " << cpu_output(i, j) << std::endl;
                 }
                 return false;
             }
@@ -446,26 +475,25 @@ void Simulator::log_cycle() {
 void Simulator::dump_trace(const std::string& filename) {
     json output;
     
-    // Convert matrices A and B to JSON arrays
+    // Convert matrices A and B to JSON arrays using CSR format
     json A_json = json::array();
     json B_json = json::array();
-    
-    // Use original matrices (A_orig, B_orig) for trace
-    const auto& A = matrix.A_orig;
-    const auto& B = matrix.B_orig;
-    
-    for (int i = 0; i < A.rows(); ++i) {
+
+    const auto& A_csr = matrix.A_orig_csr;
+    const auto& B_csr = matrix.B_orig_csr;
+
+    for (int i = 0; i < A_csr.rows_; ++i) {
         json row_a = json::array();
-        for (int j = 0; j < A.cols(); ++j) {
-            row_a.push_back(static_cast<int>(A(i, j)));
+        for (int j = 0; j < A_csr.cols_; ++j) {
+            row_a.push_back(A_csr.get(i, j));
         }
         A_json.push_back(row_a);
     }
-    
-    for (int i = 0; i < B.rows(); ++i) {
+
+    for (int i = 0; i < B_csr.rows_; ++i) {
         json row_b = json::array();
-        for (int j = 0; j < B.cols(); ++j) {
-            row_b.push_back(static_cast<int>(B(i, j)));
+        for (int j = 0; j < B_csr.cols_; ++j) {
+            row_b.push_back(B_csr.get(i, j));
         }
         B_json.push_back(row_b);
     }

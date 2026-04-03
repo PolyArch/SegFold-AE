@@ -21,16 +21,12 @@ enum class MatrixOrder {
 class MatrixLoader : public BaseModule {
 public:
     MatrixLoader(const Matrix<int8_t>& A, const Matrix<int8_t>& B);
-    
+    MatrixLoader(const CSRMatrix& A_csr, const CSRMatrix& B_csr);
+
     int M, N, K;
     Matrix<int8_t> A;
     Matrix<int8_t> B;
-    Matrix<int32_t> C;  // Use int32_t to avoid overflow in tiling calculations
-    Matrix<int8_t> A_orig;  // Store original A before tiling
-    Matrix<int8_t> B_orig;  // Store original B before tiling
-    std::optional<Matrix<int8_t>> denseA;
-    std::optional<Matrix<int8_t>> denseB;
-    std::optional<Matrix<int8_t>> denseC;
+    CSRMatrix C_csr_result;  // Sparse C = A * B (replaces dense Matrix<int32_t> C)
     
     int physical_pe_row_num;
     int physical_pe_col_num;
@@ -65,8 +61,21 @@ public:
     // CSR format matrices (converted once during initialization)
     CSRMatrix A_orig_csr, B_orig_csr;
     
-    // Offset matrices
-    Matrix<int> A_nnz_offset, B_nnz_offset, C_nnz_offset;
+    // Offset maps (sparse — avoids dense M×K / K×N allocation)
+    std::unordered_map<int64_t, int> A_nnz_offset, B_nnz_offset;
+    int A_nnz_offset_cols_ = 0, B_nnz_offset_cols_ = 0;
+    std::unordered_map<int64_t, int> C_nnz_offset;  // key = row * N + col
+
+    int A_nnz_offset_get(int row, int col) const {
+        int64_t key = static_cast<int64_t>(row) * A_nnz_offset_cols_ + col;
+        auto it = A_nnz_offset.find(key);
+        return it != A_nnz_offset.end() ? it->second : 0;
+    }
+    int B_nnz_offset_get(int row, int col) const {
+        int64_t key = static_cast<int64_t>(row) * B_nnz_offset_cols_ + col;
+        auto it = B_nnz_offset.find(key);
+        return it != B_nnz_offset.end() ? it->second : 0;
+    }
     
     // Tile information
     std::vector<std::tuple<int, int, int, int>> tiles;  // (m_start, m_end, n_start, n_end)
@@ -76,7 +85,7 @@ public:
     // Helper methods
     std::pair<int, int> get_original_index_a(int pe_row, int pe_col) const;
     std::pair<int, int> get_original_index_b(int tiled_b_row, int tiled_b_col) const;
-    std::tuple<int, int, int> data_transfer(const Matrix<int8_t>& A, const Matrix<int8_t>& B, const Matrix<int32_t>& C) const;
+    std::tuple<int, int, int> data_transfer(const Matrix<int8_t>& A, const Matrix<int8_t>& B, int c_nnz) const;
     int num_pes() const { return physical_pe_row_num * physical_pe_col_num; }
     bool intersect_bc(int b_row, int c_row) const;
     bool b_is_same_block(int k1, int k2) const;
@@ -95,7 +104,7 @@ private:
     
     // Helper methods for group_tiling
     Matrix<int8_t> _get_matrix_slice(const Matrix<int8_t>& mat, int row_start, int row_end) const;
-    std::vector<int> _greedy_tile(const Matrix<int32_t>& C_block, int target_nnz) const;
+    std::vector<int> _greedy_tile(const CSRMatrix& C_block, int target_nnz) const;
     
     // Helper structures for process_tiles
     struct TileDimensions {

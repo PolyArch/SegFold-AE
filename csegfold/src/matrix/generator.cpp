@@ -43,7 +43,7 @@ IndexedCSRMatrix::IndexedCSRMatrix(int rows, int cols) : rows_(rows), cols_(cols
     indptr_.resize(rows + 1, 0);
 }
 
-std::tuple<int8_t, int16_t, int16_t> IndexedCSRMatrix::get(int row, int col) const {
+std::tuple<int8_t, int32_t, int32_t> IndexedCSRMatrix::get(int row, int col) const {
     if (row < 0 || row >= rows_ || col < 0 || col >= cols_) {
         return {0, -1, -1};
     }
@@ -470,6 +470,51 @@ Matrix<int32_t> sparse_multiply(const CSRMatrix& A_csr, const CSRMatrix& B_csr) 
                 result(i, j) += static_cast<int32_t>(A_val) * static_cast<int32_t>(B_val);
             }
         }
+    }
+
+    return result;
+}
+
+CSRMatrix sparse_multiply_csr(const CSRMatrix& A_csr, const CSRMatrix& B_csr) {
+    auto [A_rows, A_cols] = A_csr.shape();
+    auto [B_rows, B_cols] = B_csr.shape();
+
+    if (A_cols != B_rows) {
+        throw std::runtime_error("Matrix dimensions mismatch for sparse multiplication");
+    }
+
+    CSRMatrix result(A_rows, B_cols);
+    result.indptr_[0] = 0;
+
+    std::vector<int32_t> row_accumulator(B_cols, 0);
+    std::vector<bool> col_used(B_cols, false);
+
+    for (int i = 0; i < A_rows; ++i) {
+        std::vector<int> used_cols;
+        auto A_row = A_csr.get_row(i);
+
+        for (const auto& [k, A_val] : A_row) {
+            auto B_row = B_csr.get_row(k);
+            for (const auto& [j, B_val] : B_row) {
+                int32_t product = static_cast<int32_t>(A_val) * static_cast<int32_t>(B_val);
+                if (!col_used[j]) {
+                    col_used[j] = true;
+                    used_cols.push_back(j);
+                }
+                row_accumulator[j] += product;
+            }
+        }
+
+        std::sort(used_cols.begin(), used_cols.end());
+        for (int j : used_cols) {
+            if (row_accumulator[j] != 0) {
+                result.indices_.push_back(j);
+                result.data_.push_back(row_accumulator[j]);
+            }
+            row_accumulator[j] = 0;
+            col_used[j] = false;
+        }
+        result.indptr_[i + 1] = static_cast<int>(result.indices_.size());
     }
 
     return result;

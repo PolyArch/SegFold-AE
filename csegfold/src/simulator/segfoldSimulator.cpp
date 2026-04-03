@@ -3,11 +3,17 @@
 #include "csegfold/simulator/switch.hpp"
 #include "csegfold/simulator/memoryController.hpp"
 #include <iostream>
+#include <chrono>
+#include <iomanip>
 
 namespace csegfold {
 
 SegfoldSimulator::SegfoldSimulator(const Matrix<int8_t>& A, const Matrix<int8_t>& B)
     : Simulator(A, B) {
+}
+
+SegfoldSimulator::SegfoldSimulator(const CSRMatrix& A_csr, const CSRMatrix& B_csr)
+    : Simulator(A_csr, B_csr) {
 }
 
 void SegfoldSimulator::step() {
@@ -74,21 +80,34 @@ void SegfoldSimulator::run() {
     
     int last_progress_cycle = 0;
     const int max_stall_cycles = 5000;
-    
+    int total_rows = static_cast<int>(controller.B_rows_to_load.size());
+    auto last_report = std::chrono::steady_clock::now();
+    const auto report_interval = std::chrono::seconds(10);
+
     while (!is_done() && stats.cycle < cfg.max_cycle) {
         if (stats.cycle - last_progress_cycle > max_stall_cycles) {
-            log->warning("Simulation stalled for " + std::to_string(max_stall_cycles) + 
+            log->warning("Simulation stalled for " + std::to_string(max_stall_cycles) +
                         " cycles at cycle " + std::to_string(stats.cycle));
             success = false;
             break;
         }
-        
+
         try {
             int prev_completed = controller.n_completed_rows;
             step();
             run_check();
             if (controller.n_completed_rows > prev_completed) {
                 last_progress_cycle = stats.cycle;
+            }
+
+            // Periodic progress report (every 10s wall-clock)
+            auto now = std::chrono::steady_clock::now();
+            if (now - last_report >= report_interval) {
+                double pct = total_rows > 0 ? 100.0 * controller.n_completed_rows / total_rows : 0;
+                std::cerr << "[progress] cycle=" << stats.cycle
+                          << "  rows=" << controller.n_completed_rows << "/" << total_rows
+                          << "  (" << std::fixed << std::setprecision(1) << pct << "%)" << std::endl;
+                last_report = now;
             }
         } catch (...) {
             log->error("Unexpected termination at cycle " + std::to_string(cycle()));
@@ -114,7 +133,8 @@ void SegfoldSimulator::run() {
     if (!store_is_done()) {
         log->warning("Store did not complete");
         success = false;
-    } else {
+    } else if (success) {
+        // Only confirm success if simulation wasn't already marked failed (e.g., stall detection)
         success = true;
     }
     
@@ -126,14 +146,10 @@ void SegfoldSimulator::run() {
     final_pes_fifo_blocked_stall();
     final_sw_stall_stats();
 
-    stats.c_nnz = 0;
-    for (int i = 0; i < acc_output.rows(); ++i) {
-        for (int j = 0; j < acc_output.cols(); ++j) {
-            if (acc_output(i, j) != 0) {
-                stats.c_nnz++;
-            }
-        }
-    }
+    // Copy B row demand histogram from controller to stats
+    stats.b_row_demand_hist = controller.b_row_demand_hist;
+
+    stats.c_nnz = acc_output.nnz();
 }
 
 } // namespace csegfold

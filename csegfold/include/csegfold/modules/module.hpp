@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <optional>
 #include <memory>
@@ -34,12 +35,15 @@ struct Config {
     // Memory
     bool enable_multi_b_row_loading = true;
     bool enable_b_row_reordering = true;
+    std::string b_row_scheduling = "sorted";  // "sorted" or "demand"
     bool enable_dynamic_routing = true;
     bool enable_partial_b_load = true;
     int b_loader_window_size = 32;
     bool enable_b_v_contention = false;
     bool enable_dynamic_scheduling = true;
     bool enable_tile_eviction = true;
+    bool enable_tile_pipeline = false;
+    bool fast_eviction = false;
     int c_col_update_per_row = 4;
     int II = 2;  // Initiation Interval: cycles between consecutive B row loads
     int b_loader_row_limit = 16;
@@ -60,6 +64,11 @@ struct Config {
     int num_cycles_mult_ii = 1;
     int num_cycles_memory_check = 4;
 
+    // When true, A loads use fixed num_cycles_load_a latency and bypass the
+    // memory hierarchy (no cache pollution, no DRAM bandwidth consumed).
+    // When false (default), A loads go through MSHR → Cache → DRAM like B loads.
+    bool bypass_a_memory_hierarchy = false;
+
     // B Loader FIFO
     bool enable_b_loader_fifo = false;
     int b_loader_fifo_size = 16;
@@ -72,6 +81,7 @@ struct Config {
     bool very_verbose = false;
     bool show_progress = false;
     bool save_trace = false;
+    bool save_stats_trace = true;  // Save per-cycle stats vectors (disable to save memory)
     bool run_check = false;
     int max_cycle = 10000000;
     int debug_log_frequency = 100;  // Log debug messages every N cycles (0 = disabled)
@@ -87,6 +97,7 @@ struct Config {
     bool enable_decompose_a_row = false;
     int num_split = 1;
     bool enable_dynamic_tiling = true;
+    double tile_c_multiplier = 1.0;  // Multiplier for tile C target_nnz
     bool enable_a_csc = true;
 
     // Memory hierarchy
@@ -95,10 +106,18 @@ struct Config {
     int memory_server_port = 12345;
     std::string memory_server_host = "127.0.0.1";
     std::string dummy_server_path = "../memory/server";
-    int a_pointer_offset = 0x1000;
-    int b_pointer_offset = 0x2000;
-    int c_pointer_offset = 0x3000;
+    // Element size in bytes for address computation.
+    // Each nonzero element occupies this many bytes in the address space.
+    int element_size = 4;
+
+    // Memory address offsets for A, B, C matrices.
+    // When set to -1, offsets are computed automatically from nnz counts
+    // (like Python gen_offset): A=0, B=element_size*nnz(A), C=element_size*(nnz(A)+nnz(B)).
+    int a_pointer_offset = -1;
+    int b_pointer_offset = -1;
+    int c_pointer_offset = -1;
     bool enable_filter = true;
+    bool enable_filter_intersection = true;  // When false, intersect_bc always returns true (disables filter intersection)
     bool enable_outstanding_filter = false;
     int cache_line_size = 32;
 
@@ -197,6 +216,42 @@ struct Stats {
     int sw_idle_no_b_element = 0;      // In range but no B elements available
     int sw_idle_b_row_conflict = 0;    // In range, B exists, but row conflict
 
+    // Sub-breakdown of sw_idle_no_b_element
+    int sw_idle_no_b_row = 0;         // No B row was scheduled for this PE row at all
+    int sw_idle_b_row_tail = 0;       // B row loaded but switch is past end (tail waste)
+
+    // B row load length analysis
+    int b_row_load_count = 0;         // Total record_row_load calls
+    long long b_row_total_potential = 0;  // Sum of potential_load_space
+    long long b_row_total_actual = 0;     // Sum of actual_b_elements
+    int b_row_tail_events = 0;        // Loads where actual < potential and row_complete
+    std::map<int, int> b_row_length_hist; // Histogram of actual_b_elements per load
+
+    // B row demand (broadcast) analysis: how many PE rows each B row intersects
+    std::map<int, int> b_row_demand_hist; // demand_count -> number of B rows with that demand
+
+    // Per-cycle B element loading histogram: b_loads_count -> number of cycles
+    std::map<int, int> b_loads_per_cycle_hist;
+
+    // Per PE row per cycle: how many B elements loaded → histogram
+    std::map<int, int> b_loads_per_pe_row_hist; // b_count -> number of (pe_row, cycle) pairs
+
+    // Per PE row idle switch breakdown (summed across all PE rows and cycles)
+    long long sw_idle_pe_row_no_b_row = 0;    // PE row has no B row at all
+    long long sw_idle_pe_row_b_short = 0;     // PE row has B row but it's too short (tail)
+    long long sw_idle_pe_row_not_in_range = 0; // PE row has B row but switch outside range
+
+    // Per-cycle PE row loading: how many PE rows successfully received B data
+    long long sum_pe_rows_with_b_load = 0;  // Sum across all cycles
+    int pe_row_load_cycles = 0;             // Number of cycles where B loading happened
+
+    // B loader bottleneck analysis: why can't we load more B rows per cycle
+    long long sum_b_rows_loaded_per_cycle = 0;  // Sum of loaded_b_rows across cycles
+    long long sum_active_indices_per_cycle = 0; // Sum of active_indices.size()
+    int b_row_skip_eviction = 0;        // Skipped: PE row pending eviction
+    int b_row_skip_no_capacity = 0;     // Skipped: switch/FIFO capacity full
+    int b_row_skip_b_loaded = 0;        // Skipped: PE row already loaded B this cycle
+
     // Average per cycle (calculated at end)
     double avg_sw_move_stall_by_fifo = 0.0;
     double avg_sw_move_stall_by_network = 0.0;
@@ -234,6 +289,7 @@ struct Stats {
     uint64_t l2_hits = 0;
     uint64_t l2_misses = 0;
     uint64_t dram_accesses = 0;
+    uint64_t filter_coalesced = 0;
     double avg_memory_latency = 0.0;
     
     // SPAD

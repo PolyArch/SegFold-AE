@@ -6,53 +6,49 @@
 namespace csegfold {
 
 MatrixLoader::MatrixLoader(const Matrix<int8_t>& A, const Matrix<int8_t>& B) : BaseModule() {
-    this->A_orig = A;  // Store original A before tiling
-    this->B_orig = B;  // Store original B before tiling
     this->A = A;
     this->B = B;
     auto [M, K] = A.shape();
     auto [K2, N] = B.shape();
     assert(K == K2);
-    
+
     this->M = M;
     this->N = N;
     this->K = K;
-    
+
     if (verbose()) {
-        log->info("MatrixLoader: Initializing with A(" + std::to_string(M) + "x" + std::to_string(K) + 
-                 ", nnz=" + std::to_string(A.nnz()) + "), B(" + std::to_string(K) + "x" + std::to_string(N) + 
+        log->info("MatrixLoader: Initializing with A(" + std::to_string(M) + "x" + std::to_string(K) +
+                 ", nnz=" + std::to_string(A.nnz()) + "), B(" + std::to_string(K) + "x" + std::to_string(N) +
                  ", nnz=" + std::to_string(B.nnz()) + ")");
     }
-    
+
     double A_density = static_cast<double>(A.nnz()) / (M * K);
     double B_density = static_cast<double>(B.nnz()) / (K * N);
-    
+
     if (verbose()) {
         log->info("MatrixLoader: Converting matrices to CSR format...");
     }
 
-    A_orig_csr = A_orig.to_csr();
-    B_orig_csr = B_orig.to_csr();
+    A_orig_csr = A.to_csr();
+    B_orig_csr = B.to_csr();
     if (verbose()) {
         log->info("MatrixLoader: Finished CSR conversion");
     }
-    
+
     if (verbose()) {
-        log->info("MatrixLoader: Computing C = A * B...");
+        log->info("MatrixLoader: Computing C = A * B (sparse)...");
     }
-    
-    // Always use sparse_multiply for C to avoid int8_t overflow
-    // sparse_multiply returns Matrix<int32_t> which preserves correct values
+
     if (verbose()) {
         log->info("Computing C using sparse multiplication (A density: " +
                  std::to_string(A_density) + ", B density: " +
                  std::to_string(B_density) + ")");
     }
-    this->C = sparse_multiply(A_orig_csr, B_orig_csr);
-    
+    this->C_csr_result = sparse_multiply_csr(A_orig_csr, B_orig_csr);
+
     if (verbose()) {
-        log->info("MatrixLoader: Finished generating C (" + std::to_string(C.rows()) + "x" + 
-                 std::to_string(C.cols()) + ", nnz=" + std::to_string(C.nnz()) + ")");
+        log->info("MatrixLoader: Finished generating C (" + std::to_string(C_csr_result.rows_) + "x" +
+                 std::to_string(C_csr_result.cols_) + ", nnz=" + std::to_string(C_csr_result.nnz()) + ")");
     }
     
     physical_pe_row_num = prows();
@@ -144,14 +140,11 @@ MatrixLoader::MatrixLoader(const Matrix<int8_t>& A, const Matrix<int8_t>& B) : B
     }
     
     C_csr = std::unordered_map<int, std::vector<std::pair<int, int>>>();
-    for (int i = 0; i < C.rows(); ++i) {
-        std::vector<std::pair<int, int>> row_data;
-        for (int j = 0; j < C.cols(); ++j) {
-            if (C(i, j) != 0) {
-                row_data.push_back({j, C(i, j)});
-            }
+    for (int i = 0; i < C_csr_result.rows_; ++i) {
+        auto row_data = C_csr_result.get_row(i);
+        if (!row_data.empty()) {
+            C_csr[i] = row_data;
         }
-        C_csr[i] = row_data;
     }
     if (verbose()) {
         log->info("MatrixLoader: C_csr built: " + std::to_string(C_csr.size()) + " rows");
@@ -182,51 +175,176 @@ MatrixLoader::MatrixLoader(const Matrix<int8_t>& A, const Matrix<int8_t>& B) : B
     }
 }
 
+MatrixLoader::MatrixLoader(const CSRMatrix& A_csr, const CSRMatrix& B_csr) : BaseModule() {
+    // CSR-only constructor: no dense matrices allocated
+    assert(A_csr.cols_ == B_csr.rows_);
+
+    A_orig_csr = A_csr;
+    B_orig_csr = B_csr;
+
+    M = A_csr.rows_;
+    K = A_csr.cols_;
+    N = B_csr.cols_;
+
+    if (verbose()) {
+        log->info("MatrixLoader(CSR): Initializing with A_csr(" + std::to_string(M) + "x" + std::to_string(K) +
+                 ", nnz=" + std::to_string(A_csr.nnz()) + "), B_csr(" + std::to_string(K) + "x" + std::to_string(N) +
+                 ", nnz=" + std::to_string(B_csr.nnz()) + ")");
+    }
+
+    // Compute C = A * B (sparse)
+    this->C_csr_result = sparse_multiply_csr(A_orig_csr, B_orig_csr);
+    if (verbose()) {
+        log->info("MatrixLoader(CSR): Finished generating C (" + std::to_string(C_csr_result.rows_) + "x" +
+                 std::to_string(C_csr_result.cols_) + ", nnz=" + std::to_string(C_csr_result.nnz()) + ")");
+    }
+
+    physical_pe_row_num = prows();
+    physical_pe_col_num = pcols();
+    group_size = 1;
+
+    init_indices();
+    generate_offsets();
+    ideal_data_transfer();
+
+    if (cfg.enable_dynamic_tiling) {
+        group_tiling(group_size);
+    } else {
+        dense_tiling();
+    }
+    if (verbose()) {
+        log->info("MatrixLoader(CSR): Finished tiling (" + std::to_string(tiles.size()) + " tiles)");
+    }
+
+    init_k_to_tile_id();
+    tile_data_transfer();
+
+    if (cfg.enable_decompose_a_row) {
+        decompose_a_row();
+    }
+
+    // Build B_csr map from B_indexed
+    this->B_csr = std::unordered_map<int, std::vector<std::pair<int, int>>>();
+    for (int i = 0; i < B_indexed.rows_; ++i) {
+        std::vector<std::pair<int, int>> row_data;
+        int start = B_indexed.indptr_[i];
+        int end = B_indexed.indptr_[i + 1];
+        for (int idx = start; idx < end; ++idx) {
+            int col = B_indexed.indices_[idx];
+            int8_t val = B_indexed.data_[idx];
+            if (val != 0) {
+                row_data.push_back({col, val});
+            }
+        }
+        this->B_csr[i] = row_data;
+    }
+
+    // Build C_csr map
+    C_csr = std::unordered_map<int, std::vector<std::pair<int, int>>>();
+    for (int i = 0; i < C_csr_result.rows_; ++i) {
+        auto row_data = C_csr_result.get_row(i);
+        if (!row_data.empty()) {
+            C_csr[i] = row_data;
+        }
+    }
+
+    B_csr_load = std::unordered_map<int, std::vector<bool>>();
+    for (const auto& [row, data] : this->B_csr) {
+        B_csr_load[row] = std::vector<bool>(data.size(), false);
+    }
+
+    cfg.virtual_pe_row_num = prows();
+    if (cfg.enable_spatial_folding) {
+        cfg.virtual_pe_col_num = std::max(v_cols, pcols());
+    } else {
+        cfg.virtual_pe_col_num = pcols();
+    }
+
+    denseM = M;
+    check_indices();
+    _create_A_bitmask();
+
+    if (verbose()) {
+        log->info("MatrixLoader(CSR): Initialization complete!");
+    }
+}
+
 void MatrixLoader::init_indices() {
     // Create IndexedCSRMatrix from original matrices A and B
     // Only stores data for non-zero elements
-    
-    int rows_a = A.rows();
-    int cols_a = A.cols();
-    int rows_b = B.rows();
-    int cols_b = B.cols();
-    
-    // Initialize A_indexed from A
-    A_indexed = IndexedCSRMatrix(rows_a, cols_a);
-    A_indexed.indptr_[0] = 0;
-    
-    for (int i = 0; i < rows_a; ++i) {
-        for (int j = 0; j < cols_a; ++j) {
-            int8_t val = A(i, j);
-            if (val != 0) {
-                A_indexed.indices_.push_back(j);
-                A_indexed.data_.push_back(val);
-                A_indexed.orig_row_.push_back(static_cast<int16_t>(i));
-                A_indexed.orig_col_.push_back(static_cast<int16_t>(j));
+    bool use_csr = (A.rows() == 0);  // Dense A not available (CSR constructor path)
+
+    if (use_csr) {
+        // Build IndexedCSRMatrix directly from CSR
+        A_indexed = IndexedCSRMatrix(A_orig_csr.rows_, A_orig_csr.cols_);
+        A_indexed.indptr_[0] = 0;
+        for (int i = 0; i < A_orig_csr.rows_; ++i) {
+            int start = A_orig_csr.indptr_[i];
+            int end = A_orig_csr.indptr_[i + 1];
+            for (int idx = start; idx < end; ++idx) {
+                A_indexed.indices_.push_back(A_orig_csr.indices_[idx]);
+                A_indexed.data_.push_back(static_cast<int8_t>(A_orig_csr.data_[idx]));
+                A_indexed.orig_row_.push_back(static_cast<int32_t>(i));
+                A_indexed.orig_col_.push_back(static_cast<int32_t>(A_orig_csr.indices_[idx]));
             }
+            A_indexed.indptr_[i + 1] = static_cast<int>(A_indexed.indices_.size());
         }
-        A_indexed.indptr_[i + 1] = static_cast<int>(A_indexed.indices_.size());
-    }
-    
-    // Initialize B_indexed from B
-    B_indexed = IndexedCSRMatrix(rows_b, cols_b);
-    B_indexed.indptr_[0] = 0;
-    
-    for (int i = 0; i < rows_b; ++i) {
-        for (int j = 0; j < cols_b; ++j) {
-            int8_t val = B(i, j);
-            if (val != 0) {
-                B_indexed.indices_.push_back(j);
-                B_indexed.data_.push_back(val);
-                B_indexed.orig_row_.push_back(static_cast<int16_t>(i));
-                B_indexed.orig_col_.push_back(static_cast<int16_t>(j));
+        // Same for B
+        B_indexed = IndexedCSRMatrix(B_orig_csr.rows_, B_orig_csr.cols_);
+        B_indexed.indptr_[0] = 0;
+        for (int i = 0; i < B_orig_csr.rows_; ++i) {
+            int start = B_orig_csr.indptr_[i];
+            int end = B_orig_csr.indptr_[i + 1];
+            for (int idx = start; idx < end; ++idx) {
+                B_indexed.indices_.push_back(B_orig_csr.indices_[idx]);
+                B_indexed.data_.push_back(static_cast<int8_t>(B_orig_csr.data_[idx]));
+                B_indexed.orig_row_.push_back(static_cast<int32_t>(i));
+                B_indexed.orig_col_.push_back(static_cast<int32_t>(B_orig_csr.indices_[idx]));
             }
+            B_indexed.indptr_[i + 1] = static_cast<int>(B_indexed.indices_.size());
         }
-        B_indexed.indptr_[i + 1] = static_cast<int>(B_indexed.indices_.size());
+    } else {
+        // Dense path: iterate dense matrix (existing behavior)
+        int rows_a = A.rows();
+        int cols_a = A.cols();
+        int rows_b = B.rows();
+        int cols_b = B.cols();
+
+        A_indexed = IndexedCSRMatrix(rows_a, cols_a);
+        A_indexed.indptr_[0] = 0;
+
+        for (int i = 0; i < rows_a; ++i) {
+            for (int j = 0; j < cols_a; ++j) {
+                int8_t val = A(i, j);
+                if (val != 0) {
+                    A_indexed.indices_.push_back(j);
+                    A_indexed.data_.push_back(val);
+                    A_indexed.orig_row_.push_back(static_cast<int32_t>(i));
+                    A_indexed.orig_col_.push_back(static_cast<int32_t>(j));
+                }
+            }
+            A_indexed.indptr_[i + 1] = static_cast<int>(A_indexed.indices_.size());
+        }
+
+        B_indexed = IndexedCSRMatrix(rows_b, cols_b);
+        B_indexed.indptr_[0] = 0;
+
+        for (int i = 0; i < rows_b; ++i) {
+            for (int j = 0; j < cols_b; ++j) {
+                int8_t val = B(i, j);
+                if (val != 0) {
+                    B_indexed.indices_.push_back(j);
+                    B_indexed.data_.push_back(val);
+                    B_indexed.orig_row_.push_back(static_cast<int32_t>(i));
+                    B_indexed.orig_col_.push_back(static_cast<int32_t>(j));
+                }
+            }
+            B_indexed.indptr_[i + 1] = static_cast<int>(B_indexed.indices_.size());
+        }
     }
-    
+
     if (verbose()) {
-        log->info("MatrixLoader: Created A_indexed (nnz=" + std::to_string(A_indexed.nnz()) + 
+        log->info("MatrixLoader: Created A_indexed (nnz=" + std::to_string(A_indexed.nnz()) +
                  ") and B_indexed (nnz=" + std::to_string(B_indexed.nnz()) + ")");
     }
 }
@@ -261,21 +379,101 @@ void MatrixLoader::_generate_offset_for_matrix(
 }
 
 void MatrixLoader::generate_offsets() {
-    A_nnz_offset = Matrix<int>(A_indexed.rows_, A_indexed.cols_, 0);
-    B_nnz_offset = Matrix<int>(B_indexed.rows_, B_indexed.cols_, 0);
-    C_nnz_offset = Matrix<int>(C.rows(), C.cols(), 0);
-    
-    MatrixOrder a_order = cfg.enable_a_csc ? MatrixOrder::COL_MAJOR : MatrixOrder::ROW_MAJOR;
-    _generate_offset_for_matrix(A, A_nnz_offset, a_order);
-    _generate_offset_for_matrix(B, B_nnz_offset, MatrixOrder::ROW_MAJOR);
-    _generate_offset_for_matrix(C, C_nnz_offset, MatrixOrder::ROW_MAJOR);
+    // A and B offsets now use sparse maps
+    A_nnz_offset.clear();
+    B_nnz_offset.clear();
+    A_nnz_offset_cols_ = A_indexed.cols_;
+    B_nnz_offset_cols_ = B_indexed.cols_;
+
+    // Generate A offset from A_indexed CSR
+    {
+        int count = 0;
+        if (cfg.enable_a_csc) {
+            // Column-major order: sort entries by (col, row)
+            // Avoid allocating vector of size A_indexed.cols_ which can be huge
+            struct ColEntry { int col; int row; int data_idx; };
+            std::vector<ColEntry> entries;
+            entries.reserve(A_indexed.nnz());
+            for (int i = 0; i < A_indexed.rows_; ++i) {
+                int start = A_indexed.indptr_[i];
+                int end = A_indexed.indptr_[i + 1];
+                for (int idx = start; idx < end; ++idx) {
+                    entries.push_back({A_indexed.indices_[idx], i, idx});
+                }
+            }
+            std::sort(entries.begin(), entries.end(), [](const ColEntry& a, const ColEntry& b) {
+                return a.col < b.col || (a.col == b.col && a.row < b.row);
+            });
+            for (const auto& e : entries) {
+                if (A_indexed.data_[e.data_idx] != 0) {
+                    count++;
+                    int64_t key = static_cast<int64_t>(e.row) * A_indexed.cols_ + e.col;
+                    A_nnz_offset[key] = count;
+                }
+            }
+        } else {
+            // Row-major order
+            for (int i = 0; i < A_indexed.rows_; ++i) {
+                int start = A_indexed.indptr_[i];
+                int end = A_indexed.indptr_[i + 1];
+                for (int idx = start; idx < end; ++idx) {
+                    if (A_indexed.data_[idx] != 0) {
+                        count++;
+                        int64_t key = static_cast<int64_t>(i) * A_indexed.cols_ + A_indexed.indices_[idx];
+                        A_nnz_offset[key] = count;
+                    }
+                }
+            }
+        }
+    }
+
+    // Generate B offset (always row-major)
+    {
+        int count = 0;
+        for (int i = 0; i < B_indexed.rows_; ++i) {
+            int start = B_indexed.indptr_[i];
+            int end = B_indexed.indptr_[i + 1];
+            for (int idx = start; idx < end; ++idx) {
+                if (B_indexed.data_[idx] != 0) {
+                    count++;
+                    int64_t key = static_cast<int64_t>(i) * B_indexed.cols_ + B_indexed.indices_[idx];
+                    B_nnz_offset[key] = count;
+                }
+            }
+        }
+    }
+
+    // Generate C offsets from CSR (sparse map)
+    C_nnz_offset.clear();
+    int count = 0;
+    for (int i = 0; i < C_csr_result.rows_; ++i) {
+        int start = C_csr_result.indptr_[i];
+        int end = C_csr_result.indptr_[i + 1];
+        for (int idx = start; idx < end; ++idx) {
+            int j = C_csr_result.indices_[idx];
+            if (C_csr_result.data_[idx] != 0) {
+                count++;
+                int64_t key = static_cast<int64_t>(i) * N + j;
+                C_nnz_offset[key] = count;
+            }
+        }
+    }
+
+    // Auto-compute pointer offsets from nnz counts
+    int a_nnz = A_orig_csr.nnz();
+    int b_nnz = B_orig_csr.nnz();
+    if (cfg.a_pointer_offset < 0)
+        cfg.a_pointer_offset = 0;
+    if (cfg.b_pointer_offset < 0)
+        cfg.b_pointer_offset = cfg.element_size * a_nnz;
+    if (cfg.c_pointer_offset < 0)
+        cfg.c_pointer_offset = cfg.element_size * (a_nnz + b_nnz);
 }
 
 void MatrixLoader::ideal_data_transfer() {
-    auto [a_nnz, b_nnz, c_nnz] = data_transfer(A, B, C);
-    stats.ideal_a = a_nnz;
-    stats.ideal_b = b_nnz;
-    stats.ideal_c = c_nnz;
+    stats.ideal_a = A_orig_csr.nnz();
+    stats.ideal_b = B_orig_csr.nnz();
+    stats.ideal_c = C_csr_result.nnz();
 }
 
 Matrix<int8_t> MatrixLoader::_get_matrix_slice(const Matrix<int8_t>& mat, int row_start, int row_end) const {
@@ -291,19 +489,23 @@ Matrix<int8_t> MatrixLoader::_get_matrix_slice(const Matrix<int8_t>& mat, int ro
     return slice;
 }
 
-std::vector<int> MatrixLoader::_greedy_tile(const Matrix<int32_t>& C_block, int target_nnz) const {
+std::vector<int> MatrixLoader::_greedy_tile(const CSRMatrix& C_block, int target_nnz) const {
     std::vector<int> borders;
     int acc = 0;
-    int cols = C_block.cols();
-    
-    for (int j = 0; j < cols; ++j) {
-        int col_nnz = 0;
-        for (int i = 0; i < C_block.rows(); ++i) {
-            if (C_block(i, j) != 0) {
-                col_nnz++;
-            }
+    int cols = C_block.cols_;
+
+    // Count nnz per column from CSR data
+    std::vector<int> col_nnz_counts(cols, 0);
+    for (int i = 0; i < C_block.rows_; ++i) {
+        int start = C_block.indptr_[i];
+        int end = C_block.indptr_[i + 1];
+        for (int idx = start; idx < end; ++idx) {
+            col_nnz_counts[C_block.indices_[idx]]++;
         }
-        acc += col_nnz;
+    }
+
+    for (int j = 0; j < cols; ++j) {
+        acc += col_nnz_counts[j];
         if (acc >= target_nnz) {
             borders.push_back(j + 1);
             acc = 0;
@@ -313,9 +515,12 @@ std::vector<int> MatrixLoader::_greedy_tile(const Matrix<int32_t>& C_block, int 
     if (borders.empty() || borders.back() != cols) {
         borders.push_back(cols);
     }
-    
+
     return borders;
 }
+
+// Forward declaration (defined below dense_tiling)
+static CSRMatrix csr_row_slice(const CSRMatrix& mat, int row_start, int row_end);
 
 void MatrixLoader::group_tiling(int group_size) {
     tiles.clear();
@@ -343,13 +548,11 @@ void MatrixLoader::group_tiling(int group_size) {
         int m_start = g * gh;
         int m_end = std::min(m_start + gh, M);
         
-        Matrix<int8_t> A_block = _get_matrix_slice(A, m_start, m_end);
+        CSRMatrix A_block_csr = csr_row_slice(A_orig_csr, m_start, m_end);
+        CSRMatrix C_block = sparse_multiply_csr(A_block_csr, B_orig_csr);
 
-        // Always use sparse_multiply to get int32_t result and avoid overflow
-        CSRMatrix A_block_csr = A_block.to_csr();
-        Matrix<int32_t> C_block = sparse_multiply(A_block_csr, B_orig_csr);
-
-        std::vector<int> borders = _greedy_tile(C_block, num_pes);
+        int target_nnz = std::max(1, static_cast<int>(num_pes * cfg.tile_c_multiplier));
+        std::vector<int> borders = _greedy_tile(C_block, target_nnz);
     
         int cs = 0;
         for (int ce : borders) {
@@ -465,139 +668,6 @@ static CSRMatrix csr_col_slice(const CSRMatrix& mat, int col_start, int col_end)
     return result;
 }
 
-static CSRMatrix csr_pad_rows(const CSRMatrix& mat, int pad_rows, int pad_val = -1) {
-    int rows = mat.rows_ + pad_rows;
-    int cols = mat.cols_;
-    
-    CSRMatrix result = mat;
-    result.rows_ = rows;
-    
-    for (int i = 0; i < pad_rows; ++i) {
-        if (pad_val != 0) {
-            for (int j = 0; j < cols; ++j) {
-                result.indices_.push_back(j);
-                result.data_.push_back(pad_val);
-            }
-        }
-        result.indptr_.push_back(static_cast<int>(result.indices_.size()));
-    }
-    
-    return result;
-}
-
-static CSRMatrix csr_pad_cols(const CSRMatrix& mat, int pad_cols, int pad_val = -1) {
-    int rows = mat.rows_;
-    int cols = mat.cols_ + pad_cols;
-    
-    CSRMatrix result(rows, cols);
-    result.indptr_.push_back(0);
-    
-    for (int i = 0; i < rows; ++i) {
-        auto row_data = mat.get_row(i);
-        for (const auto& [col, val] : row_data) {
-            result.indices_.push_back(col);
-            result.data_.push_back(val);
-        }
-        if (pad_val != 0) {
-            for (int j = 0; j < pad_cols; ++j) {
-                result.indices_.push_back(mat.cols_ + j);
-                result.data_.push_back(pad_val);
-            }
-        }
-        result.indptr_.push_back(static_cast<int>(result.indices_.size()));
-    }
-    
-    return result;
-}
-
-static CSRMatrix csr_hstack_pad(const std::vector<CSRMatrix>& mats, int pad_val = -1) {
-    if (mats.empty()) {
-        return CSRMatrix(0, 0);
-    }
-    
-    int max_rows = 0;
-    for (const auto& m : mats) {
-        max_rows = std::max(max_rows, m.rows_);
-    }
-    
-    std::vector<CSRMatrix> padded;
-    for (const auto& m : mats) {
-        if (m.rows_ < max_rows) {
-            padded.push_back(csr_pad_rows(m, max_rows - m.rows_, pad_val));
-        } else {
-            padded.push_back(m);
-        }
-    }
-    
-    int total_cols = 0;
-    for (const auto& m : padded) {
-        total_cols += m.cols_;
-    }
-    
-    CSRMatrix result(max_rows, total_cols);
-    result.indptr_[0] = 0;
-    
-    for (int i = 0; i < max_rows; ++i) {
-        int col_offset = 0;
-        for (size_t mat_idx = 0; mat_idx < padded.size(); ++mat_idx) {
-            const auto& m = padded[mat_idx];
-            auto row_data = m.get_row(i);
-            for (const auto& [col, val] : row_data) {
-                result.indices_.push_back(col_offset + col);
-                result.data_.push_back(val);
-            }
-            col_offset += m.cols_;
-        }
-        result.indptr_[i + 1] = static_cast<int>(result.indices_.size());
-    }
-    
-    return result;
-}
-
-static CSRMatrix csr_vstack_pad(const std::vector<CSRMatrix>& mats, int pad_val = -1) {
-    if (mats.empty()) {
-        return CSRMatrix(0, 0);
-    }
-    
-    int max_cols = 0;
-    for (const auto& m : mats) {
-        max_cols = std::max(max_cols, m.cols_);
-    }
-    
-    std::vector<CSRMatrix> padded;
-    for (const auto& m : mats) {
-        if (m.cols_ < max_cols) {
-            padded.push_back(csr_pad_cols(m, max_cols - m.cols_, pad_val));
-        } else {
-            padded.push_back(m);
-        }
-    }
-    
-    int total_rows = 0;
-    for (const auto& m : padded) {
-        total_rows += m.rows_;
-    }
-    
-    CSRMatrix result(total_rows, max_cols);
-    result.indptr_.resize(total_rows + 1, 0);
-    result.indptr_[0] = 0;
-    
-    int current_row = 0;
-    for (const auto& m : padded) {
-        for (int i = 0; i < m.rows_; ++i) {
-            auto row_data = m.get_row(i);
-            for (const auto& [col, val] : row_data) {
-                result.indices_.push_back(col);
-                result.data_.push_back(val);
-            }
-            current_row++;
-            result.indptr_[current_row] = static_cast<int>(result.indices_.size());
-        }
-    }
-    
-    return result;
-}
-
 void MatrixLoader::process_tiles() {
     if (verbose()) {
         log->info("Process tiles: Processing " + std::to_string(tiles.size()) + " tiles...");
@@ -663,17 +733,148 @@ void MatrixLoader::init_k_to_tile_id() {
 }
 
 void MatrixLoader::tile_data_transfer() {
-    auto [a_nnz, b_nnz, c_nnz] = data_transfer(A, B, C);
-    stats.tile_a = a_nnz;
-    stats.tile_b = b_nnz;
-    stats.tile_c = c_nnz;
+    stats.tile_a = A_indexed.nnz();
+    stats.tile_b = B_indexed.nnz();
+    stats.tile_c = C_csr_result.nnz();
 }
 
 void MatrixLoader::decompose_a_row() {
-    // Row decomposition - splits A matrix rows into segments
-    // This is an advanced feature, simplified for now
+    // Row decomposition: for each tiled K column of A, if it has more than
+    // num_split nonzeros, split it into ceil(nnz/num_split) sub-columns,
+    // each with at most num_split nonzeros. Each sub-column gets a copy of
+    // the corresponding B row. This reduces the number of PE rows that
+    // simultaneously demand the same B row (broadcast factor).
+    int n = cfg.num_split;
+    if (n <= 0) n = 1;
+
+    int old_K = A_indexed.cols_;
+    int old_M = A_indexed.rows_;
+    int old_B_cols = B_indexed.cols_;
+
+    // Step 1: Build CSC-like structure from A_indexed (CSR) to iterate by column
+    // For each tiled column k, collect (row, data_idx) pairs
+    std::vector<std::vector<std::pair<int, int>>> col_entries(old_K);
+    for (int row = 0; row < old_M; ++row) {
+        int start = A_indexed.indptr_[row];
+        int end = A_indexed.indptr_[row + 1];
+        for (int idx = start; idx < end; ++idx) {
+            int col = A_indexed.indices_[idx];
+            col_entries[col].push_back({row, idx});
+        }
+    }
+
+    // Step 2: Compute new K dimension and build column mapping
+    // For each old column k, it expands to ceil(nnz_k / n) sub-columns
+    std::vector<int> new_col_start(old_K);  // old col k -> first new col index
+    std::vector<int> new_col_count(old_K);  // old col k -> number of new sub-columns
+    int new_K = 0;
+    for (int k = 0; k < old_K; ++k) {
+        int nnz_k = static_cast<int>(col_entries[k].size());
+        if (nnz_k == 0) continue;
+        new_col_start[k] = new_K;
+        int m1 = (nnz_k + n - 1) / n;
+        new_col_count[k] = m1;
+        new_K += m1;
+    }
+
     if (verbose()) {
-        log->info("decompose_a_row called (simplified implementation)");
+        log->info("decompose_a_row: old_K=" + std::to_string(old_K) +
+                  " new_K=" + std::to_string(new_K) + " num_split=" + std::to_string(n));
+    }
+
+    // Step 3: Build new A_indexed
+    IndexedCSRMatrix new_A(old_M, new_K);
+    new_A.indptr_.resize(old_M + 1, 0);
+
+    // For each old column k, distribute its nonzeros across sub-columns
+    // We need to build row-major output, so collect per-row entries first
+    std::vector<std::vector<std::tuple<int, int8_t, int32_t, int32_t>>> new_A_rows(old_M);
+
+    for (int k = 0; k < old_K; ++k) {
+        if (col_entries[k].empty()) continue;
+        int base_col = new_col_start[k];
+        for (int i = 0; i < static_cast<int>(col_entries[k].size()); ++i) {
+            int sub_col = base_col + i / n;
+            auto [row, data_idx] = col_entries[k][i];
+            new_A_rows[row].push_back({
+                sub_col,
+                A_indexed.data_[data_idx],
+                A_indexed.orig_row_[data_idx],
+                A_indexed.orig_col_[data_idx]
+            });
+        }
+    }
+
+    // Sort each row by column and build CSR
+    new_A.indptr_[0] = 0;
+    for (int row = 0; row < old_M; ++row) {
+        auto& entries = new_A_rows[row];
+        std::sort(entries.begin(), entries.end());
+        for (auto& [col, val, orig_r, orig_c] : entries) {
+            new_A.indices_.push_back(col);
+            new_A.data_.push_back(val);
+            new_A.orig_row_.push_back(orig_r);
+            new_A.orig_col_.push_back(orig_c);
+        }
+        new_A.indptr_[row + 1] = static_cast<int>(new_A.indices_.size());
+    }
+
+    // Step 4: Build new B_indexed by duplicating B rows for each sub-column
+    // Old B row k maps to new B rows [new_col_start[k], new_col_start[k] + new_col_count[k])
+    IndexedCSRMatrix new_B(new_K, old_B_cols);
+    new_B.indptr_.resize(new_K + 1, 0);
+    new_B.indptr_[0] = 0;
+
+    for (int k = 0; k < old_K; ++k) {
+        if (col_entries[k].empty()) continue;
+        int m1 = new_col_count[k];
+        // Get old B row k data
+        int b_start = B_indexed.indptr_[k];
+        int b_end = B_indexed.indptr_[k + 1];
+
+        for (int sub = 0; sub < m1; ++sub) {
+            int new_row = new_col_start[k] + sub;
+            // Copy entire B row for each sub-column
+            for (int idx = b_start; idx < b_end; ++idx) {
+                new_B.indices_.push_back(B_indexed.indices_[idx]);
+                new_B.data_.push_back(B_indexed.data_[idx]);
+                new_B.orig_row_.push_back(B_indexed.orig_row_[idx]);
+                new_B.orig_col_.push_back(B_indexed.orig_col_[idx]);
+            }
+            new_B.indptr_[new_row + 1] = static_cast<int>(new_B.indices_.size());
+        }
+    }
+
+    // Fill indptr for empty rows (columns of A that had 0 nnz)
+    for (int r = 1; r <= new_K; ++r) {
+        if (new_B.indptr_[r] == 0 && r > 0) {
+            new_B.indptr_[r] = new_B.indptr_[r - 1];
+        }
+    }
+
+    // Step 5: Update k_to_tile_id mapping
+    std::unordered_map<int, int> new_k_to_tile_id;
+    for (int k = 0; k < old_K; ++k) {
+        if (col_entries[k].empty()) continue;
+        int tile_id = k / K;  // Same logic as init_k_to_tile_id
+        for (int sub = 0; sub < new_col_count[k]; ++sub) {
+            new_k_to_tile_id[new_col_start[k] + sub] = tile_id;
+        }
+    }
+
+    // Step 6: Replace member variables
+    A_indexed = new_A;
+    B_indexed = new_B;
+    k_to_tile_id = new_k_to_tile_id;
+
+    // Step 7: Rebuild bitmask (used by intersect_bc)
+    _create_A_bitmask();
+
+    if (verbose()) {
+        log->info("decompose_a_row: A_indexed " + std::to_string(A_indexed.rows_) + "x" +
+                  std::to_string(A_indexed.cols_) + " nnz=" + std::to_string(A_indexed.nnz()) +
+                  ", B_indexed " + std::to_string(B_indexed.rows_) + "x" +
+                  std::to_string(B_indexed.cols_) + " nnz=" + std::to_string(B_indexed.nnz()));
     }
 }
 
@@ -723,10 +924,9 @@ bool MatrixLoader::_get_bit_from_packed(int row, int col) const {
     return (A_bitmask[row][byte_idx] >> (7 - bit_idx)) & 1;
 }
 
-std::tuple<int, int, int> MatrixLoader::data_transfer(const Matrix<int8_t>& A, const Matrix<int8_t>& B, const Matrix<int32_t>& C) const {
+std::tuple<int, int, int> MatrixLoader::data_transfer(const Matrix<int8_t>& A, const Matrix<int8_t>& B, int c_nnz) const {
     int a_nnz = A.nnz();
     int b_nnz = B.nnz();
-    int c_nnz = C.nnz();
     return std::make_tuple(a_nnz, b_nnz, c_nnz);
 }
 
@@ -794,48 +994,23 @@ static std::vector<int> sparse_multiply_row_nnz(const CSRMatrix& A_csr, const CS
 
 int MatrixLoader::get_vcols() {
     int max_v_cols = 0;
-    double A_density = static_cast<double>(A_orig.nnz()) / (A_orig.rows() * A_orig.cols());
-    double B_density = static_cast<double>(B_orig.nnz()) / (B_orig.rows() * B_orig.cols());
-    bool use_sparse = (A_density < 0.5 && B_density < 0.5);
-    
-    
+
     size_t tile_count = 0;
     for (const auto& tile : tiles) {
         if (verbose() && tiles.size() > 10 && (tile_count % (tiles.size() / 10) == 0 || tile_count == tiles.size() - 1)) {
             log->info("get_vcols: Processing tile " + std::to_string(tile_count + 1) + "/" + std::to_string(tiles.size()));
         }
         tile_count++;
-        
+
         auto [m_start, m_end, n_start, n_end] = tile;
-        
-        if (use_sparse) {
-            CSRMatrix A_slice_csr = csr_row_slice(A_orig_csr, m_start, m_end);
-            CSRMatrix B_slice_csr = csr_col_slice(B_orig_csr, n_start, n_end);
-            
-            std::vector<int> row_nnz = sparse_multiply_row_nnz(A_slice_csr, B_slice_csr);
-            for (int nnz : row_nnz) {
-                max_v_cols = std::max(max_v_cols, nnz);
-            }
-        } else {
-            Matrix<int8_t> A_slice = _get_matrix_slice(A_orig, m_start, m_end);
-            Matrix<int8_t> B_slice(B_orig.rows(), n_end - n_start, 0);
-            for (int i = 0; i < B_orig.rows(); ++i) {
-                for (int j = n_start; j < n_end; ++j) {
-                    B_slice(i, j - n_start) = B_orig(i, j);
-                }
-            }
-            
-            Matrix<int8_t> C_slice = A_slice * B_slice;
-            
-            for (int i = 0; i < C_slice.rows(); ++i) {
-                int row_nnz = 0;
-                for (int j = 0; j < C_slice.cols(); ++j) {
-                    if (C_slice(i, j) != 0) {
-                        row_nnz++;
-                    }
-                }
-                max_v_cols = std::max(max_v_cols, row_nnz);
-            }
+
+        // Always use sparse path (via CSR) to avoid dense allocation
+        CSRMatrix A_slice_csr = csr_row_slice(A_orig_csr, m_start, m_end);
+        CSRMatrix B_slice_csr = csr_col_slice(B_orig_csr, n_start, n_end);
+
+        std::vector<int> row_nnz = sparse_multiply_row_nnz(A_slice_csr, B_slice_csr);
+        for (int nnz : row_nnz) {
+            max_v_cols = std::max(max_v_cols, nnz);
         }
     }
     return max_v_cols;
@@ -855,8 +1030,8 @@ MatrixLoader::TileDimensions MatrixLoader::_compute_tile_dimensions() const {
         // max_A_rows is the maximum rows in any tile (tiles are hstacked, so all use same row count)
         // This will be padded to physical_pe_row_num if needed for compatibility
         dims.max_A_rows = std::max(dims.max_A_rows, actual_rows);
-        dims.total_A_cols += A_orig.cols();  // Sum of all tile column widths (hstack)
-        dims.total_B_rows += B_orig.rows();  // Sum of all tile row heights (vstack)
+        dims.total_A_cols += A_orig_csr.cols_;  // Sum of all tile column widths (hstack)
+        dims.total_B_rows += B_orig_csr.rows_;  // Sum of all tile row heights (vstack)
         dims.max_B_cols = std::max(dims.max_B_cols, n_end - n_start);
     }
     
@@ -905,26 +1080,25 @@ void MatrixLoader::_build_A_indexed_from_tiles(IndexedCSRMatrix& A_indexed_out) 
     // Build row by row: for each output row, process all tiles
     for (int output_row = 0; output_row < max_rows; ++output_row) {
         int A_col_offset = 0;
-        size_t tile_idx = 0;
-        
+
         for (const auto& tile : tiles) {
             auto [m_start, m_end, n_start, n_end] = tile;
             int tile_rows = m_end - m_start;
-            
+
             // Only process if this tile has data for this output row
             if (output_row < tile_rows) {
                 int src_row = m_start + output_row;
-                
+
                 // Copy non-zeros from A_indexed for this row
                 int start = A_indexed.indptr_[src_row];
                 int end = A_indexed.indptr_[src_row + 1];
-                
+
                 for (int idx = start; idx < end; ++idx) {
                     int orig_col = A_indexed.indices_[idx];
                     int8_t val = A_indexed.data_[idx];
-                    int16_t orig_row = A_indexed.orig_row_[idx];
-                    int16_t orig_col_coord = A_indexed.orig_col_[idx];
-                    
+                    int32_t orig_row = A_indexed.orig_row_[idx];
+                    int32_t orig_col_coord = A_indexed.orig_col_[idx];
+
                     // Add to tiled matrix with offset column (horizontal stacking)
                     A_indexed_out.indices_.push_back(A_col_offset + orig_col);
                     A_indexed_out.data_.push_back(val);
@@ -932,9 +1106,8 @@ void MatrixLoader::_build_A_indexed_from_tiles(IndexedCSRMatrix& A_indexed_out) 
                     A_indexed_out.orig_col_.push_back(orig_col_coord);
                 }
             }
-            
-            A_col_offset += A_orig.cols();
-            tile_idx++;
+
+            A_col_offset += A_orig_csr.cols_;
         }
         
         // Set indptr for next row
@@ -950,7 +1123,7 @@ void MatrixLoader::_build_A_indexed_from_tiles(IndexedCSRMatrix& A_indexed_out) 
 void MatrixLoader::_build_B_indexed_from_tiles(IndexedCSRMatrix& B_indexed_out) {
     int B_row_offset = 0;
     size_t tile_idx = 0;
-    
+
     for (const auto& tile : tiles) {
         if (verbose() && tiles.size() > 10 && 
             (tile_idx % (tiles.size() / 10) == 0 || tile_idx == tiles.size() - 1)) {
@@ -972,8 +1145,8 @@ void MatrixLoader::_build_B_indexed_from_tiles(IndexedCSRMatrix& B_indexed_out) 
                 // Only include if column is in this tile's range
                 if (orig_col >= n_start && orig_col < n_end) {
                     int8_t val = B_indexed.data_[idx];
-                    int16_t orig_row = B_indexed.orig_row_[idx];
-                    int16_t orig_col_coord = B_indexed.orig_col_[idx];
+                    int32_t orig_row = B_indexed.orig_row_[idx];
+                    int32_t orig_col_coord = B_indexed.orig_col_[idx];
                     
                     // Add to tiled matrix with adjusted column (relative to tile start)
                     B_indexed_out.indices_.push_back(orig_col - n_start);
@@ -985,7 +1158,7 @@ void MatrixLoader::_build_B_indexed_from_tiles(IndexedCSRMatrix& B_indexed_out) 
             
             B_indexed_out.indptr_[B_row_offset + src_row + 1] = static_cast<int>(B_indexed_out.indices_.size());
         }
-        
+
         B_row_offset += B_indexed.rows_;
         tile_idx++;
     }
