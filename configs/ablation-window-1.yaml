@@ -1,15 +1,15 @@
-# Ablation: disable B row reordering (K-dimension)
-# Based on segfold.yaml with overrides: {'enable_b_row_reordering': False}
+# Ablation: B loader window size = 1
+# Based on segfold.yaml with overrides: {'b_loader_window_size': 1}
 
 is_dense: false
 physical_pe_row_num: 16
 physical_pe_col_num: 16
 enable_multi_b_row_loading: true
-enable_b_row_reordering: false
+enable_b_row_reordering: true
 b_row_scheduling: sorted
 enable_dynamic_routing: true
 enable_partial_b_load: true
-b_loader_window_size: 32
+b_loader_window_size: 1
 enable_b_v_contention: false
 enable_dynamic_scheduling: true
 enable_tile_eviction: true

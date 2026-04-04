@@ -1,13 +1,13 @@
-# Ablation: disable B row reordering (K-dimension)
-# Based on segfold.yaml with overrides: {'enable_b_row_reordering': False}
+# Ablation: CSR-order mapping with dynamic tiling
+# Based on segfold.yaml with overrides: {'enable_dynamic_tiling': True, 'enable_dynamic_routing': False, 'enable_offset': True}
 
 is_dense: false
 physical_pe_row_num: 16
 physical_pe_col_num: 16
 enable_multi_b_row_loading: true
-enable_b_row_reordering: false
+enable_b_row_reordering: true
 b_row_scheduling: sorted
-enable_dynamic_routing: true
+enable_dynamic_routing: false
 enable_partial_b_load: true
 b_loader_window_size: 32
 enable_b_v_contention: false
@@ -16,7 +16,7 @@ enable_tile_eviction: true
 c_col_update_per_row: 4
 II: 0
 b_loader_row_limit: 4
-enable_offset: false
+enable_offset: true
 enable_sw_pe_fifo: true
 sw_pe_fifo_size: 16
 decouple_sw_and_pe: false
@@ -46,7 +46,7 @@ update_on_move: true
 update_with_round_robin: false
 enable_decompose_a_row: false
 num_split: 1
-enable_dynamic_tiling: false
+enable_dynamic_tiling: true
 tile_c_multiplier: 1.0
 enable_a_csc: true
 enable_memory_hierarchy: true
