@@ -77,11 +77,14 @@ Reproduces the paper's overall speedup comparison (SegFold vs Spada vs Flexagon)
 
 ```bash
 python3 scripts/run_overall.py output/my_run
+python3 scripts/run_overall.py output/my_run --jobs 4  # parallel
 ```
 
 **Matrices:** fv1, flowmeter0, delaunay_n13, ca-GrQc, ca-CondMat, poisson3Da, bcspwr06, tols4000, rdb5000, psse1, gemat1
 
-**Config:** `configs/segfold.yaml` (16x16 PE array, 1.5 MB L1 cache, HBM2 DRAM)
+**Configs:**
+- Most matrices use `configs/segfold.yaml` (16x16 PE array, 1 MB L1 cache, HBM2 DRAM)
+- Irregular matrices (ca-GrQc, ca-CondMat, poisson3Da) use `configs/segfold-ir.yaml` (row decomposition, larger tiles, demand scheduling)
 
 **Output:** `output/my_run/overall/sim_{matrix}_stats.json`
 
@@ -163,16 +166,12 @@ All experiment scripts accept these options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--jobs N` | 2 | Max parallel simulations |
+| `--jobs N` | 2 | Max parallel simulations (1 = sequential) |
 | `--config PATH` | `configs/segfold.yaml` | SegFold configuration file |
 | `--matrix-dir PATH` | `benchmarks/data/suitesparse` | SuiteSparse matrix directory |
 | `--timeout SEC` | 3600 | Timeout per simulation in seconds |
 
-Example: run with 4 parallel jobs:
-
-```bash
-python3 scripts/run_overall.py output/my_run --jobs 4
-```
+`run_overall.py` also accepts `--config-ir PATH` (default: `configs/segfold-ir.yaml`) for irregular matrices.
 
 ### Running a Single Matrix
 
@@ -182,12 +181,14 @@ python3 scripts/run_overall.py output/my_run --jobs 4
     --mtx-file benchmarks/data/suitesparse/ca-GrQc/ca-GrQc.mtx
 ```
 
+Use `--tmp-dir <path>` to control where stats/config JSON files are saved (default: `csegfold/tmp/`).
+
 ## Repository Structure
 
 ```
 SegFold-AE/
 ├── README.md
-├── INSTALL.md
+├── INSTALL.md                       # Detailed build & dependency guide
 ├── Dockerfile / docker-compose.yml
 ├── csegfold/                        # C++ simulator
 │   ├── CMakeLists.txt
@@ -199,17 +200,15 @@ SegFold-AE/
 │   │   └── memory/                  # Cache + Ramulator2 backend
 │   └── include/
 ├── configs/
-│   ├── segfold.yaml                 # Full SegFold (1.5 MB L1, HBM2)
+│   ├── segfold.yaml                 # Full SegFold config
+│   ├── segfold-ir.yaml              # Config for irregular matrices
 │   ├── breakdown-base.yaml          # All optimizations OFF
 │   ├── breakdown-plus-tiling.yaml   # + dynamic tiling
 │   ├── breakdown-plus-folding.yaml  # + spatial folding
 │   ├── breakdown-plus-dynmap.yaml   # + dynamic routing
-│   ├── ramulator2-hbm.yaml          # HBM2 DRAM config
-│   ├── baseline.yaml                # No memory hierarchy
-│   └── ablation-*.yaml              # Per-feature ablation configs
+│   └── ramulator2-hbm.yaml         # HBM2 DRAM config
 ├── benchmarks/data/
-│   ├── suitesparse/                 # SuiteSparse .mtx files
-│   └── cnn_llm/                     # Pre-generated DNN matrices
+│   └── suitesparse/                 # SuiteSparse .mtx files
 ├── data/baselines/
 │   ├── overall_baselines.csv        # Pre-computed Spada/Flexagon cycles
 │   └── nonsquare_baselines.csv      # Pre-computed Spada cycles
@@ -224,18 +223,17 @@ SegFold-AE/
 │   ├── plot_overall.py              # Overall speedup figure
 │   ├── plot_nonsquare.py            # Non-square speedup figure
 │   └── plot_breakdown.py            # Breakdown stacked bar figure
-├── hardware/                        # RTL & synthesis reports
-│   ├── rtl/
-│   └── reports/
-└── expected_results/                # Reference outputs for validation
+└── hardware/                        # RTL & synthesis reports
+    ├── rtl/
+    └── reports/
 ```
 
 ## Expected Runtime
 
 With default settings on a machine with 16 GB RAM and 8 cores:
 
-| Experiment | Runs | Est. Time |
-|------------|------|-----------|
+| Experiment | Runs | Est. Time (`--jobs 4`) |
+|------------|------|------------------------|
 | Overall performance (11 matrices) | 11 | 10-20 min |
 | Non-square performance (6 matrices) | 6 | 5-15 min |
 | Speedup breakdown (5 configs x 12 matrices) | 60 | 30-60 min |

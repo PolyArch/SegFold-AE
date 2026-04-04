@@ -1,0 +1,7 @@
+output/
+csegfold/build/
+csegfold/tmp/
+benchmarks/data/suitesparse/
+.git/
+__pycache__/
+*.pyc

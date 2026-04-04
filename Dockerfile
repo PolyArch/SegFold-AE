@@ -30,7 +30,7 @@ WORKDIR /workspace/segfold
 RUN cd csegfold \
     && mkdir -p build \
     && cd build \
-    && cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=OFF \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_RAMULATOR2=ON \
     && make -j$(nproc)
 
 # Ensure the output directory exists
@@ -38,4 +38,4 @@ RUN mkdir -p /workspace/segfold/output
 
 ENTRYPOINT ["/bin/bash"]
 
-CMD ["-c", "echo 'SegFold Artifact Evaluation Container'; echo ''; echo 'Usage:'; echo '  Interactive shell:'; echo '    docker compose run artifact'; echo ''; echo '  Run all experiments:'; echo '    docker compose run artifact ./scripts/run_all.sh'; echo ''; echo '  Run specific experiment:'; echo '    docker compose run artifact ./scripts/run_synthetic.sh'; echo '    docker compose run artifact ./scripts/run_suitesparse.sh'; echo ''; echo '  Results will be written to the ./output/ directory on the host.'"]
+CMD ["-c", "echo 'SegFold Artifact Evaluation Container'; echo ''; echo 'Usage:'; echo '  Run all experiments:'; echo '    docker run segfold-ae -c \"./scripts/run_all.sh\"'; echo ''; echo '  Run specific experiment:'; echo '    docker run segfold-ae -c \"python3 scripts/run_overall.py output/run\"'; echo '    docker run segfold-ae -c \"python3 scripts/run_nonsquare.py output/run\"'; echo '    docker run segfold-ae -c \"python3 scripts/run_breakdown.py output/run\"'"]
