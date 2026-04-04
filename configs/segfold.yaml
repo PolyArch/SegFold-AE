@@ -64,7 +64,7 @@ update_with_round_robin: False
 # Matrix
 enable_decompose_a_row: False
 num_split: 1
-enable_dynamic_tiling: True
+enable_dynamic_tiling: False
 tile_c_multiplier: 1.0
 enable_a_csc: True
 

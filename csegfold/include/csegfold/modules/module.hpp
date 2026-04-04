@@ -236,6 +236,9 @@ struct Stats {
     // Per PE row per cycle: how many B elements loaded → histogram
     std::map<int, int> b_loads_per_pe_row_hist; // b_count -> number of (pe_row, cycle) pairs
 
+    // Per B row per cycle: how many PE rows received it → histogram (runtime broadcast factor)
+    std::map<int, int> b_row_reuse_hist; // pe_row_count -> number of (b_row, cycle) pairs
+
     // Per PE row idle switch breakdown (summed across all PE rows and cycles)
     long long sw_idle_pe_row_no_b_row = 0;    // PE row has no B row at all
     long long sw_idle_pe_row_b_short = 0;     // PE row has B row but it's too short (tail)

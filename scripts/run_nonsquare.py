@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -46,10 +47,15 @@ def run_one(binary: Path, config: Path, matrix: str,
         print(f"  [MISS] {matrix}: {mtx_path} not found")
         return (matrix, -1, False)
 
+    # Use per-matrix tmp dir to avoid file conflicts when running in parallel
+    mat_tmp_dir = tmp_dir / matrix
+    mat_tmp_dir.mkdir(parents=True, exist_ok=True)
+
     cmd = [
         str(binary),
         "--config", str(config),
         "--mtx-file", str(mtx_path),
+        "--tmp-dir", str(mat_tmp_dir),
     ]
     try:
         result = subprocess.run(
@@ -66,7 +72,7 @@ def run_one(binary: Path, config: Path, matrix: str,
                 print(f"         {lines[-1][:200]}")
             return (matrix, -1, False)
 
-        latest = find_latest_stats(tmp_dir)
+        latest = find_latest_stats(mat_tmp_dir)
         if latest:
             dest = out_dir / f"sim_{matrix}_stats.json"
             shutil.move(str(latest), str(dest))
@@ -114,12 +120,24 @@ def main():
     print("=" * 50)
 
     results = {}
-    for i, mat in enumerate(MATRICES):
-        print(f"[{i+1}/{len(MATRICES)}]", end=" ")
-        mat, cycles, ok = run_one(binary, args.config, mat,
-                                   args.matrix_dir, out_dir, tmp_dir,
-                                   args.timeout)
-        results[mat] = cycles
+    if args.jobs <= 1:
+        for i, mat in enumerate(MATRICES):
+            print(f"[{i+1}/{len(MATRICES)}]", end=" ")
+            mat, cycles, ok = run_one(binary, args.config, mat,
+                                       args.matrix_dir, out_dir, tmp_dir,
+                                       args.timeout)
+            results[mat] = cycles
+    else:
+        futures = {}
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
+            for mat in MATRICES:
+                future = executor.submit(run_one, binary, args.config, mat,
+                                         args.matrix_dir, out_dir, tmp_dir,
+                                         args.timeout)
+                futures[future] = mat
+            for future in as_completed(futures):
+                mat, cycles, ok = future.result()
+                results[mat] = cycles
 
     print()
     print("=" * 50)

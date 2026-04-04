@@ -268,6 +268,15 @@ std::unordered_map<std::string, std::string> Stats::to_dict() const {
         }
         result["b_loads_per_pe_row_hist"] = hist_str;
     }
+    // Per B-row per cycle runtime reuse histogram
+    {
+        std::string hist_str;
+        for (const auto& [reuse, cnt] : b_row_reuse_hist) {
+            if (!hist_str.empty()) hist_str += ",";
+            hist_str += std::to_string(reuse) + ":" + std::to_string(cnt);
+        }
+        result["b_row_reuse_hist"] = hist_str;
+    }
     // Per PE-row idle switch breakdown
     result["sw_idle_pe_row_no_b_row"] = std::to_string(sw_idle_pe_row_no_b_row);
     result["sw_idle_pe_row_b_short"] = std::to_string(sw_idle_pe_row_b_short);

@@ -4,6 +4,7 @@
 #include "csegfold/modules/spad.hpp"
 #include <algorithm>
 #include <sstream>
+#include <unordered_map>
 
 namespace csegfold {
 
@@ -209,6 +210,19 @@ void analyze_idle_switches(Simulator* simulator, SwitchModule* switchModule) {
     }
     simulator->stats.sum_pe_rows_with_b_load += pe_rows_with_load;
     simulator->stats.pe_row_load_cycles++;
+
+    // Compute per-B-row runtime reuse: how many PE rows received each B row this cycle
+    std::unordered_map<int, int> b_row_pe_count;
+    for (int i = 0; i < switchModule->vrows(); ++i) {
+        for (const auto& info : switchModule->row_load_info[i]) {
+            if (info.actual_b_elements > 0) {
+                b_row_pe_count[info.b_row]++;
+            }
+        }
+    }
+    for (const auto& [b_row, count] : b_row_pe_count) {
+        simulator->stats.b_row_reuse_hist[count]++;
+    }
 
     for (int i = 0; i < switchModule->vrows(); ++i) {
         const auto& load_info = switchModule->row_load_info[i];

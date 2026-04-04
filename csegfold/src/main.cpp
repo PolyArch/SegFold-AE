@@ -25,9 +25,13 @@ namespace {
         return oss.str();
     }
 
-    std::filesystem::path get_tmp_dir() {
-        // Get the path relative to the executable or use a fixed path
-        std::filesystem::path tmp_dir = std::filesystem::path(__FILE__).parent_path().parent_path() / "tmp";
+    std::filesystem::path get_tmp_dir(const std::string& override_path = "") {
+        std::filesystem::path tmp_dir;
+        if (!override_path.empty()) {
+            tmp_dir = override_path;
+        } else {
+            tmp_dir = std::filesystem::path(__FILE__).parent_path().parent_path() / "tmp";
+        }
         std::filesystem::create_directories(tmp_dir);
         return tmp_dir;
     }
@@ -52,6 +56,7 @@ int main(int argc, char* argv[]) {
     std::string config_path = "../../exp/config/test.yaml";
     std::string matrix_file;
     std::string mtx_file;
+    std::string tmp_dir_override;
     int M = 8, K = 8, N = 8;
     double densityA = 0.5, densityB = 0.5;
     int random_state = 2;
@@ -77,6 +82,8 @@ int main(int argc, char* argv[]) {
             matrix_file = argv[++i];
         } else if (arg == "--mtx-file" && i + 1 < argc) {
             mtx_file = argv[++i];
+        } else if (arg == "--tmp-dir" && i + 1 < argc) {
+            tmp_dir_override = argv[++i];
         }
     }
 
@@ -190,7 +197,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Save config and stats
-        auto tmp_dir = get_tmp_dir();
+        auto tmp_dir = get_tmp_dir(tmp_dir_override);
         std::string timestamp = get_timestamp();
         std::string prefix = "run_" + timestamp;
         save_to_file(tmp_dir / (prefix + "_config.json"), sim.cfg.serialize());
@@ -348,7 +355,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Save config and stats to tmp directory
-    auto tmp_dir = get_tmp_dir();
+    auto tmp_dir = get_tmp_dir(tmp_dir_override);
     std::string timestamp = get_timestamp();
     std::string prefix = "run_" + timestamp;
 

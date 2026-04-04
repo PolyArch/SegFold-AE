@@ -31,6 +31,9 @@ MATRICES = [
     "psse1", "gemat1",
 ]
 
+# Matrices that use segfold-ir.yaml (irregular, need decompose_a_row / larger tiles)
+IR_MATRICES = {"ca-GrQc", "ca-CondMat", "poisson3Da"}
+
 CYCLE_RE = re.compile(r"completed successfully in (\d+) cycles")
 
 
@@ -49,10 +52,15 @@ def run_one(binary: Path, config: Path, matrix: str,
         print(f"  [MISS] {matrix}: {mtx_path} not found")
         return (matrix, -1, False)
 
+    # Use per-matrix tmp dir to avoid file conflicts when running in parallel
+    mat_tmp_dir = tmp_dir / matrix
+    mat_tmp_dir.mkdir(parents=True, exist_ok=True)
+
     cmd = [
         str(binary),
         "--config", str(config),
         "--mtx-file", str(mtx_path),
+        "--tmp-dir", str(mat_tmp_dir),
     ]
     try:
         result = subprocess.run(
@@ -69,12 +77,11 @@ def run_one(binary: Path, config: Path, matrix: str,
                 print(f"         {lines[-1][:200]}")
             return (matrix, -1, False)
 
-        # Move stats JSON from tmp/ to out_dir as sim_{matrix}_stats.json
-        latest = find_latest_stats(tmp_dir)
+        # Move stats JSON from per-matrix tmp/ to out_dir
+        latest = find_latest_stats(mat_tmp_dir)
         if latest:
             dest = out_dir / f"sim_{matrix}_stats.json"
             shutil.move(str(latest), str(dest))
-            # Also move config JSON if present
             config_json = latest.with_name(latest.name.replace("_stats.json", "_config.json"))
             if config_json.exists():
                 shutil.move(str(config_json), str(out_dir / f"sim_{matrix}_config.json"))
@@ -95,6 +102,8 @@ def main():
     parser.add_argument("--jobs", type=int, default=2)
     parser.add_argument("--config", type=Path,
                         default=PROJECT_ROOT / "configs" / "segfold.yaml")
+    parser.add_argument("--config-ir", type=Path,
+                        default=PROJECT_ROOT / "configs" / "segfold-ir.yaml")
     parser.add_argument("--matrix-dir", type=Path,
                         default=PROJECT_ROOT / "benchmarks" / "data" / "suitesparse")
     parser.add_argument("--timeout", type=int, default=3600)
@@ -114,19 +123,34 @@ def main():
     print("=" * 50)
     print("Overall Performance Experiment")
     print(f"  matrices: {len(MATRICES)}")
-    print(f"  config:   {args.config}")
+    print(f"  config:      {args.config}")
+    print(f"  config (IR): {args.config_ir}")
+    print(f"  IR matrices: {sorted(IR_MATRICES)}")
     print(f"  jobs:     {args.jobs}")
     print(f"  output:   {out_dir}")
     print("=" * 50)
 
-    # Run sequentially to avoid tmp/ file conflicts between parallel jobs
     results = {}
-    for i, mat in enumerate(MATRICES):
-        print(f"[{i+1}/{len(MATRICES)}]", end=" ")
-        mat, cycles, ok = run_one(binary, args.config, mat,
-                                   args.matrix_dir, out_dir, tmp_dir,
-                                   args.timeout)
-        results[mat] = cycles
+    if args.jobs <= 1:
+        for i, mat in enumerate(MATRICES):
+            cfg = args.config_ir if mat in IR_MATRICES else args.config
+            print(f"[{i+1}/{len(MATRICES)}] ({cfg.name})", end=" ")
+            mat, cycles, ok = run_one(binary, cfg, mat,
+                                       args.matrix_dir, out_dir, tmp_dir,
+                                       args.timeout)
+            results[mat] = cycles
+    else:
+        futures = {}
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
+            for mat in MATRICES:
+                cfg = args.config_ir if mat in IR_MATRICES else args.config
+                future = executor.submit(run_one, binary, cfg, mat,
+                                         args.matrix_dir, out_dir, tmp_dir,
+                                         args.timeout)
+                futures[future] = mat
+            for future in as_completed(futures):
+                mat, cycles, ok = future.result()
+                results[mat] = cycles
 
     print()
     print("=" * 50)

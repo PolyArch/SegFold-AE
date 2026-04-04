@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -54,10 +55,15 @@ def run_one(binary: Path, config: Path, config_name: str, matrix: str,
     sub_dir = out_dir / config_name
     sub_dir.mkdir(parents=True, exist_ok=True)
 
+    # Use per-config-matrix tmp dir to avoid file conflicts when running in parallel
+    mat_tmp_dir = tmp_dir / f"{config_name}_{matrix}"
+    mat_tmp_dir.mkdir(parents=True, exist_ok=True)
+
     cmd = [
         str(binary),
         "--config", str(config),
         "--mtx-file", str(mtx_path),
+        "--tmp-dir", str(mat_tmp_dir),
     ]
     try:
         result = subprocess.run(
@@ -71,7 +77,7 @@ def run_one(binary: Path, config: Path, config_name: str, matrix: str,
             print(f"  [FAIL] {config_name}/{matrix}: rc={result.returncode}")
             return (config_name, matrix, -1)
 
-        latest = find_latest_stats(tmp_dir)
+        latest = find_latest_stats(mat_tmp_dir)
         if latest:
             dest = sub_dir / f"sim_{matrix}_stats.json"
             shutil.move(str(latest), str(dest))
@@ -126,19 +132,32 @@ def main():
     print(f"  output:     {out_dir}")
     print("=" * 50)
 
-    # Run sequentially (tmp/ file conflicts with parallel)
     results = {}
-    count = 0
-    for config_name in CONFIGS:
-        print(f"\n--- Config: {config_name} ---")
-        for matrix in MATRICES:
-            count += 1
-            print(f"[{count}/{total}]", end=" ")
-            cfg, mat, cycles = run_one(
-                binary, config_paths[config_name], config_name, matrix,
-                args.matrix_dir, out_dir, tmp_dir, args.timeout
-            )
-            results[(cfg, mat)] = cycles
+    if args.jobs <= 1:
+        count = 0
+        for config_name in CONFIGS:
+            print(f"\n--- Config: {config_name} ---")
+            for matrix in MATRICES:
+                count += 1
+                print(f"[{count}/{total}]", end=" ")
+                cfg, mat, cycles = run_one(
+                    binary, config_paths[config_name], config_name, matrix,
+                    args.matrix_dir, out_dir, tmp_dir, args.timeout
+                )
+                results[(cfg, mat)] = cycles
+    else:
+        futures = {}
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
+            for config_name in CONFIGS:
+                for matrix in MATRICES:
+                    future = executor.submit(
+                        run_one, binary, config_paths[config_name], config_name,
+                        matrix, args.matrix_dir, out_dir, tmp_dir, args.timeout
+                    )
+                    futures[future] = (config_name, matrix)
+            for future in as_completed(futures):
+                cfg, mat, cycles = future.result()
+                results[(cfg, mat)] = cycles
 
     # Print summary table
     print()
