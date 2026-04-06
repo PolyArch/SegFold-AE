@@ -40,7 +40,7 @@ int main() {
     double densityB = 0.1;
     int random_state = 42;
     
-    // Load config from YAML file (like ablation_runner)
+    // Load config from YAML file
     std::string config_file = test_utils::get_workspace_root() + "/csegfold/tests/test_perf_config.yaml";
     std::cout << "Loading config from: " << config_file << "\n";
     

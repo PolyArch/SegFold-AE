@@ -161,20 +161,6 @@ install(TARGETS csegfold
     RUNTIME DESTINATION bin
 )
 
-# Ablation study runner executable
-add_executable(ablation_runner
-    src/runner/ablation_runner.cpp
-    ${MODULES_SOURCES}
-    ${MATRIX_SOURCES}
-    ${SIMULATOR_SOURCES}
-    ${MEMORY_SOURCES}
-)
-target_compile_features(ablation_runner PUBLIC cxx_std_20)
-target_link_libraries(ablation_runner PUBLIC yaml-cpp)
-link_ramulator_if_enabled(ablation_runner)
-install(TARGETS ablation_runner
-    RUNTIME DESTINATION bin
-)
 
 install(DIRECTORY include/
     DESTINATION include

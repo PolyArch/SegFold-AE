@@ -93,9 +93,6 @@ if [ ! -x csegfold/build/csegfold ]; then
 fi
 echo "  csegfold executable found ... OK"
 
-if [ ! -x csegfold/build/ablation_runner ]; then
-    echo "WARNING: ablation_runner not found (optional, used for synthetic experiments)."
-fi
 
 # ─── Step 5: Run smoke test ──────────────────────────────────────────────────
 
