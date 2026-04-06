@@ -1,7 +1,9 @@
 #include "csegfold/matrix/generator.hpp"
 #include <stdexcept>
 #include <algorithm>
+#include <numeric>
 #include <random>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -186,11 +188,239 @@ gen_uniform_matrix(const MatrixParams& params) {
     return std::make_tuple(A, B, C);
 }
 
+// --- gen_rand_matrix helpers ---
+
+// Sample row nnz counts for C pattern with target c_density
+static std::vector<int> _sample_row_nnz_counts(const MatrixParams& params, std::mt19937& rng) {
+    int target_total = static_cast<int>(std::round(params.c_density * params.M * params.N));
+    double mean_row_nnz = params.c_density * params.N;
+
+    std::vector<int> row_counts(params.M);
+    if (params.m_variance > 0) {
+        std::normal_distribution<double> norm(mean_row_nnz, mean_row_nnz * params.m_variance);
+        for (int i = 0; i < params.M; ++i)
+            row_counts[i] = std::clamp(static_cast<int>(std::round(norm(rng))), 0, params.N);
+    } else {
+        for (int i = 0; i < params.M; ++i)
+            row_counts[i] = static_cast<int>(std::round(mean_row_nnz));
+    }
+
+    // Adjust to hit target_total
+    std::uniform_int_distribution<int> idx_dist(0, params.M - 1);
+    int diff = target_total - std::accumulate(row_counts.begin(), row_counts.end(), 0);
+    while (diff > 0) {
+        int i = idx_dist(rng);
+        if (row_counts[i] < params.N) { row_counts[i]++; diff--; }
+    }
+    while (diff < 0) {
+        int i = idx_dist(rng);
+        if (row_counts[i] > 0) { row_counts[i]--; diff++; }
+    }
+
+    // Ensure no zero rows if possible
+    for (int i = 0; i < params.M; ++i) {
+        if (row_counts[i] == 0) {
+            for (int j = 0; j < params.M; ++j) {
+                if (row_counts[j] > 1) { row_counts[j]--; row_counts[i]++; break; }
+            }
+        }
+    }
+    return row_counts;
+}
+
+// Generate C sparsity pattern as CSR
+static CSRMatrix _generate_c_pattern(const MatrixParams& params, std::mt19937& rng) {
+    auto row_nnz_counts = _sample_row_nnz_counts(params, rng);
+
+    CSRMatrix csr(params.M, params.N);
+    std::vector<int> all_cols(params.N);
+    std::iota(all_cols.begin(), all_cols.end(), 0);
+
+    for (int row = 0; row < params.M; ++row) {
+        int nnz = row_nnz_counts[row];
+        if (nnz <= 0) {
+            csr.indptr_[row + 1] = csr.indptr_[row];
+            continue;
+        }
+        nnz = std::min(nnz, params.N);
+        // Sample nnz unique columns
+        std::vector<int> cols(all_cols.begin(), all_cols.end());
+        // Partial Fisher-Yates shuffle to pick nnz elements
+        for (int i = 0; i < nnz; ++i) {
+            std::uniform_int_distribution<int> d(i, params.N - 1);
+            std::swap(cols[i], cols[d(rng)]);
+        }
+        cols.resize(nnz);
+        std::sort(cols.begin(), cols.end());
+        for (int c : cols) {
+            csr.indices_.push_back(c);
+            csr.data_.push_back(1);
+        }
+        csr.indptr_[row + 1] = static_cast<int>(csr.indices_.size());
+    }
+    return csr;
+}
+
+// Sample A row k-sets: for each row of A, which K indices to use
+static std::vector<std::vector<int>> _sample_a_row_k_sets(
+    const CSRMatrix& c_pattern, const MatrixParams& params, std::mt19937& rng) {
+
+    int target_total = static_cast<int>(std::round(params.density_a * params.M * params.K));
+
+    // Weight rows by C nnz
+    std::vector<double> weights(params.M);
+    for (int i = 0; i < params.M; ++i) {
+        int c_nnz = c_pattern.indptr_[i + 1] - c_pattern.indptr_[i];
+        weights[i] = std::max(1.0, static_cast<double>(c_nnz));
+    }
+    double wsum = std::accumulate(weights.begin(), weights.end(), 0.0);
+    for (auto& w : weights) w /= wsum;
+
+    std::vector<int> row_counts(params.M);
+    for (int i = 0; i < params.M; ++i)
+        row_counts[i] = std::min(static_cast<int>(std::floor(weights[i] * target_total)), params.K);
+
+    // Ensure rows with C nnz > 0 get at least 1
+    for (int i = 0; i < params.M; ++i) {
+        int c_nnz = c_pattern.indptr_[i + 1] - c_pattern.indptr_[i];
+        if (c_nnz > 0 && row_counts[i] == 0) row_counts[i] = 1;
+    }
+
+    // Adjust to hit target
+    int remaining = target_total - std::accumulate(row_counts.begin(), row_counts.end(), 0);
+    std::uniform_int_distribution<int> idx_dist(0, params.M - 1);
+    while (remaining > 0) {
+        int i = idx_dist(rng);
+        if (row_counts[i] < params.K) { row_counts[i]++; remaining--; }
+    }
+
+    // Build k-sets
+    std::vector<int> all_k(params.K);
+    std::iota(all_k.begin(), all_k.end(), 0);
+
+    std::vector<std::vector<int>> row_k_sets(params.M);
+    for (int row = 0; row < params.M; ++row) {
+        int count = std::clamp(row_counts[row], 0, params.K);
+        if (count <= 0) continue;
+        if (count >= params.K) {
+            row_k_sets[row] = all_k;
+        } else {
+            std::vector<int> pool(all_k);
+            for (int i = 0; i < count; ++i) {
+                std::uniform_int_distribution<int> d(i, params.K - 1);
+                std::swap(pool[i], pool[d(rng)]);
+            }
+            pool.resize(count);
+            std::sort(pool.begin(), pool.end());
+            row_k_sets[row] = pool;
+        }
+    }
+    return row_k_sets;
+}
+
+// Derive A and B factor matrices from C pattern
+static std::pair<CSRMatrix, CSRMatrix> _derive_factor_matrices(
+    const CSRMatrix& c_pattern, const MatrixParams& params, std::mt19937& rng) {
+
+    int mean_k = std::max(1, std::min(params.K,
+        std::min(std::max(1, static_cast<int>(std::round(params.density_a * params.K))),
+                 std::max(1, static_cast<int>(std::round(params.density_b * params.K))))));
+
+    auto row_k_sets = _sample_a_row_k_sets(c_pattern, params, rng);
+
+    // Collect COO entries for A and B
+    std::vector<std::pair<int,int>> a_entries, b_entries;
+
+    for (int row = 0; row < params.M; ++row) {
+        auto& k_pool = row_k_sets[row];
+        if (k_pool.empty()) continue;
+
+        // Add A entries for this row's k-set
+        for (int k : k_pool)
+            a_entries.push_back({row, k});
+
+        // For each C(row, col), sample k indices from pool for B
+        for (int idx = c_pattern.indptr_[row]; idx < c_pattern.indptr_[row + 1]; ++idx) {
+            int col = c_pattern.indices_[idx];
+            int k_count = std::max(1, std::min(static_cast<int>(k_pool.size()), mean_k));
+
+            // Sample k_count from pool
+            std::vector<int> sampled;
+            if (k_count >= static_cast<int>(k_pool.size())) {
+                sampled = k_pool;
+            } else {
+                std::vector<int> pool_copy(k_pool);
+                for (int i = 0; i < k_count; ++i) {
+                    std::uniform_int_distribution<int> d(i, static_cast<int>(pool_copy.size()) - 1);
+                    std::swap(pool_copy[i], pool_copy[d(rng)]);
+                }
+                sampled.assign(pool_copy.begin(), pool_copy.begin() + k_count);
+            }
+
+            for (int k : sampled) {
+                a_entries.push_back({row, k});
+                b_entries.push_back({k, col});
+            }
+        }
+    }
+
+    // Deduplicate and build CSR for A
+    std::sort(a_entries.begin(), a_entries.end());
+    a_entries.erase(std::unique(a_entries.begin(), a_entries.end()), a_entries.end());
+    CSRMatrix A_csr(params.M, params.K);
+    for (auto& [r, c] : a_entries) {
+        A_csr.indices_.push_back(c);
+        A_csr.data_.push_back(1);
+    }
+    {
+        int idx = 0;
+        for (int r = 0; r < params.M; ++r) {
+            A_csr.indptr_[r] = idx;
+            while (idx < static_cast<int>(a_entries.size()) && a_entries[idx].first == r) idx++;
+        }
+        A_csr.indptr_[params.M] = static_cast<int>(a_entries.size());
+    }
+
+    // Deduplicate and build CSR for B
+    std::sort(b_entries.begin(), b_entries.end());
+    b_entries.erase(std::unique(b_entries.begin(), b_entries.end()), b_entries.end());
+    CSRMatrix B_csr(params.K, params.N);
+    for (auto& [r, c] : b_entries) {
+        B_csr.indices_.push_back(c);
+        B_csr.data_.push_back(1);
+    }
+    {
+        int idx = 0;
+        for (int r = 0; r < params.K; ++r) {
+            B_csr.indptr_[r] = idx;
+            while (idx < static_cast<int>(b_entries.size()) && b_entries[idx].first == r) idx++;
+        }
+        B_csr.indptr_[params.K] = static_cast<int>(b_entries.size());
+    }
+
+    return {A_csr, B_csr};
+}
+
 std::tuple<Matrix<int8_t>, Matrix<int8_t>, Matrix<int32_t>>
 gen_rand_matrix(const MatrixParams& params) {
-    // Simplified version - full implementation would be more complex
-    // For now, use uniform generation
-    return gen_uniform_matrix(params);
+    if (params.M <= 0 || params.N <= 0 || params.K <= 0) {
+        throw std::runtime_error("Matrix dimensions must be positive");
+    }
+
+    std::mt19937 rng(params.random_state.value_or(0));
+
+    // Step 1: Generate target C sparsity pattern
+    CSRMatrix c_pattern = _generate_c_pattern(params, rng);
+
+    // Step 2: Derive A and B such that A*B matches C pattern
+    auto [A_csr, B_csr] = _derive_factor_matrices(c_pattern, params, rng);
+
+    // Step 3: Convert to dense
+    Matrix<int8_t> A = csr_to_dense_matrix(A_csr);
+    Matrix<int8_t> B = csr_to_dense_matrix(B_csr);
+    Matrix<int32_t> C = sparse_multiply(A_csr, B_csr);
+
+    return std::make_tuple(A, B, C);
 }
 
 CSRMatrix gen_diag_n_matrix(int size, int n) {

@@ -40,9 +40,6 @@ MATRIX_ORDER = [
 ACCELS = [
     ("segfold_cycles", "SegFold (Ours)", "#BBDEFB"),
     ("spada_cycles",   "Spada",          "#B5D99C"),
-    ("ip_cycles",      "Spada (IP only)",    "#F4A7BB"),
-    ("op_cycles",      "Spada (OP only)",    "#E57373"),
-    ("multirow_cycles","Spada (Gust only)",  "#FFD54F"),
     ("flexagon_op_cycles",  "Flexagon (OP only)",   "#E57373"),
     ("flexagon_gust_cycles","Flexagon (Gust only)", "#FFD54F"),
 ]

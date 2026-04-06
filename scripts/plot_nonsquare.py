@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot non-square performance: SegFold vs Spada dataflows.
+"""Plot non-square performance: SegFold vs Spada, normalized to Spada.
 
 Reads SegFold cycle counts from nonsquare_results.csv and merges with
 pre-computed baseline data from data/baselines/nonsquare_baselines.csv.
@@ -30,13 +30,20 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MATRIX_ORDER = ["lp_woodw", "pcb3000", "gemat1", "Franz6", "Franz8", "psse1"]
 
-ACCELS = [
-    ("segfold_cycles", "SegFold (Ours)", "#BBDEFB"),
-    ("spada_cycles",   "Spada",          "#B5D99C"),
-    ("ip_cycles",      "Spada (IP only)",    "#F4A7BB"),
-    ("op_cycles",      "Spada (OP only)",    "#E57373"),
-    ("multirow_cycles","Spada (Gust only)",  "#FFD54F"),
-]
+COL_MAP = {
+    "segfold_cycles": ("SegFold", "SegFold (Ours)"),
+    "spada_cycles":   ("Spada",   "Spada"),
+}
+
+COLORS = {
+    "SegFold": "#BBDEFB",   # light blue
+    "Spada":   "#B5D99C",   # light green
+}
+
+HATCHES = {
+    "SegFold": "",
+    "Spada":   "",
+}
 
 
 def main():
@@ -64,71 +71,95 @@ def main():
     )
     df = df.sort_values("_order").reset_index(drop=True)
 
-    valid = []
-    speedups = {col: [] for col, _, _ in ACCELS}
-
-    for _, row in df.iterrows():
-        sp = row.get("spada_cycles")
-        if pd.isna(sp) or sp <= 0:
+    # Parse accelerator keys
+    accel_keys = []
+    accel_data = {}
+    for col, (key, label) in COL_MAP.items():
+        if col not in df.columns:
             continue
-        valid.append(row["matrix"])
-        for col, _, _ in ACCELS:
-            v = row.get(col)
-            if pd.notna(v) and v > 0:
-                speedups[col].append(sp / v)
+        vals = [float(v) if pd.notna(v) and v != "" else np.nan for v in df[col]]
+        accel_keys.append((key, label))
+        accel_data[key] = vals
+
+    matrices = df["matrix"].tolist()
+
+    # Compute speedup normalized to Spada
+    speedups = {key: [] for key, _ in accel_keys}
+    valid_idx = []
+
+    for i in range(len(matrices)):
+        sp = accel_data["Spada"][i]
+        if np.isnan(sp) or sp <= 0:
+            continue
+        valid_idx.append(i)
+        for key, _ in accel_keys:
+            v = accel_data[key][i]
+            if not np.isnan(v) and v > 0:
+                speedups[key].append(sp / v)
             else:
-                speedups[col].append(0)
+                speedups[key].append(0)
 
-    # Geomean
-    for col, _, _ in ACCELS:
-        vals = [v for v in speedups[col] if v > 0]
-        geo = np.exp(np.mean(np.log(vals))) if vals else 0
-        speedups[col].append(geo)
-    valid.append("GeoMean")
+    valid_matrices = [matrices[i] for i in valid_idx]
+    valid_dims = [f"({int(df.iloc[i]['M'])}\u00d7{int(df.iloc[i]['K'])})"
+                  for i in valid_idx]
+    labels = [f"{m}\n{d}" for m, d in zip(valid_matrices, valid_dims)]
 
-    n = len(valid)
-    present = [(col, label, color) for col, label, color in ACCELS
-               if any(v > 0 for v in speedups[col])]
-    n_accels = len(present)
+    n = len(valid_matrices)
+    n_accels = len(accel_keys)
     x = np.arange(n)
-    bar_width = 0.8 / n_accels
+    bar_width = 0.55 / n_accels
+    y_max = 2.0
 
-    fig, ax = plt.subplots(figsize=(max(12, n * 1.4), 6))
+    fig, ax = plt.subplots(figsize=(max(7, n * 1.05), 3.5))
 
-    for j, (col, label, color) in enumerate(present):
+    # Draw bars
+    for j, (key, label) in enumerate(accel_keys):
         offset = (j - n_accels / 2 + 0.5) * bar_width
-        bars = ax.bar(x + offset, speedups[col], bar_width,
-                      label=label, color=color,
-                      edgecolor="black", linewidth=0.5)
-        bars[-1].set_edgecolor("black")
-        bars[-1].set_linewidth(1.5)
+        ax.bar(x + offset, speedups[key], bar_width,
+               label=label, color=COLORS[key], hatch=HATCHES.get(key, ""),
+               edgecolor="black", linewidth=0.5)
 
-    # SegFold value labels
-    sf_col = "segfold_cycles"
-    sf_idx = next(j for j, (c, _, _) in enumerate(present) if c == sf_col)
-    sf_offset = (sf_idx - n_accels / 2 + 0.5) * bar_width
-    for i, v in enumerate(speedups[sf_col]):
-        if v <= 0:
-            continue
-        fw = "bold" if i == n - 1 else "normal"
-        ax.text(x[i] + sf_offset, v + 0.03, f"{v:.1f}x",
-                ha="center", va="bottom", fontsize=10, fontweight=fw, clip_on=False)
+    # Vertical separator between wide (cols>rows) and tall (rows>cols)
+    # First 3 are wide, last 3 are tall
+    sep_x = 2.5
+    ax.axvline(x=sep_x, color="gray", linestyle="-", linewidth=0.8)
+    ax.text((-0.6 + sep_x) / 2, y_max * 0.95, "Wide (cols > rows)",
+            ha="center", va="top", fontsize=9, fontstyle="italic", color="#555555")
+    ax.text((sep_x + n - 0.4) / 2, y_max * 0.95, "Tall (rows > cols)",
+            ha="center", va="top", fontsize=9, fontstyle="italic", color="#555555")
 
-    ax.axvline(x=n - 1.5, color="gray", linestyle="-", linewidth=0.8)
     ax.axhline(y=1, color="gray", linestyle="--", linewidth=0.5)
     ax.grid(axis="y", alpha=0.3)
     ax.set_xlim(-0.6, n - 0.4)
-    ax.set_ylim(bottom=0)
+    ax.set_ylim(0, y_max)
+
+    # Value labels on SegFold bars
+    sf_idx = next(j for j, (k, _) in enumerate(accel_keys) if k == "SegFold")
+    sf_offset = (sf_idx - n_accels / 2 + 0.5) * bar_width
+    for i, v in enumerate(speedups["SegFold"]):
+        if v <= 0:
+            continue
+        fw = "normal"
+        if v > y_max:
+            ax.text(x[i] + sf_offset, y_max + 0.03, f"{v:.1f}x",
+                    ha="center", va="bottom", fontsize=9, fontweight=fw,
+                    clip_on=False)
+        else:
+            ax.text(x[i] + sf_offset, v + 0.04, f"{v:.1f}x",
+                    ha="center", va="bottom", fontsize=9, fontweight=fw)
+
     ax.set_ylabel("speedup", fontsize=14)
     ax.set_xticks(x)
-    ax.set_xticklabels(valid, rotation=0, ha="center", fontsize=11)
-    ax.legend(loc="upper center", fontsize=12, ncol=min(n_accels, 5),
+    ax.set_xticklabels(labels, rotation=0, ha="center", fontsize=9)
+    ax.legend(loc="upper center", fontsize=10, ncol=8,
               framealpha=0.95, edgecolor="gray",
               handlelength=1.5, columnspacing=1.0,
-              bbox_to_anchor=(0.5, 1.2))
+              bbox_to_anchor=(0.5, 1.25))
 
     plots_dir = os.path.join(out_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)
+
+    plt.tight_layout()
     for ext in [".pdf", ".png"]:
         path = os.path.join(plots_dir, f"nonsquare_speedup{ext}")
         fig.savefig(path, dpi=200, bbox_inches="tight")

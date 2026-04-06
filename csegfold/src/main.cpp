@@ -56,9 +56,11 @@ int main(int argc, char* argv[]) {
     std::string config_path = "../../exp/config/test.yaml";
     std::string matrix_file;
     std::string mtx_file;
+    std::string mtx_file_b;
     std::string tmp_dir_override;
     int M = 8, K = 8, N = 8;
     double densityA = 0.5, densityB = 0.5;
+    double c_density = -1.0;  // negative = use gen_uniform_matrix; positive = use gen_rand_matrix
     int random_state = 2;
 
     // Parse command line arguments
@@ -82,6 +84,10 @@ int main(int argc, char* argv[]) {
             matrix_file = argv[++i];
         } else if (arg == "--mtx-file" && i + 1 < argc) {
             mtx_file = argv[++i];
+        } else if (arg == "--mtx-file-b" && i + 1 < argc) {
+            mtx_file_b = argv[++i];
+        } else if (arg == "--c-density" && i + 1 < argc) {
+            c_density = std::stod(argv[++i]);
         } else if (arg == "--tmp-dir" && i + 1 < argc) {
             tmp_dir_override = argv[++i];
         }
@@ -98,14 +104,20 @@ int main(int argc, char* argv[]) {
         CSRMatrix A_csr = load_mtx_to_csr(mtx_file);
         M = A_csr.rows_;
         K = A_csr.cols_;
-        N = M;  // B = A^T, so N = M
 
         std::cerr << "[load] A: " << M << "x" << K << " nnz=" << A_csr.nnz() << std::endl;
 
-        // Compute B = A^T (transpose)
-        CSRMatrix B_csr(K, M);
-        {
-            // Count entries per row of B (= per column of A)
+        CSRMatrix B_csr(0, 0);
+        if (!mtx_file_b.empty()) {
+            // Load separate B matrix
+            std::cerr << "[load] Loading B MTX file: " << mtx_file_b << std::endl;
+            B_csr = load_mtx_to_csr(mtx_file_b);
+            N = B_csr.cols_;
+            std::cerr << "[load] B: " << B_csr.rows_ << "x" << N << " nnz=" << B_csr.nnz() << std::endl;
+        } else {
+            // B = A^T (transpose)
+            N = M;
+            B_csr = CSRMatrix(K, M);
             std::vector<int> row_counts(K, 0);
             for (int i = 0; i < A_csr.rows_; ++i) {
                 int start = A_csr.indptr_[i];
@@ -114,12 +126,10 @@ int main(int argc, char* argv[]) {
                     row_counts[A_csr.indices_[idx]]++;
                 }
             }
-            // Build indptr
             B_csr.indptr_[0] = 0;
             for (int i = 0; i < K; ++i) {
                 B_csr.indptr_[i + 1] = B_csr.indptr_[i] + row_counts[i];
             }
-            // Fill data
             B_csr.indices_.resize(A_csr.nnz());
             B_csr.data_.resize(A_csr.nnz());
             std::vector<int> pos(K, 0);
@@ -134,8 +144,8 @@ int main(int argc, char* argv[]) {
                     B_csr.data_[p] = A_csr.data_[idx];
                 }
             }
+            std::cerr << "[load] B (=A^T): " << K << "x" << M << " nnz=" << B_csr.nnz() << std::endl;
         }
-        std::cerr << "[load] B (=A^T): " << K << "x" << M << " nnz=" << B_csr.nnz() << std::endl;
 
         // Compute C = A * B (sparse)
         std::cerr << "[load] Computing C = A * B (sparse)..." << std::endl;
@@ -288,10 +298,13 @@ int main(int argc, char* argv[]) {
         int prow = config_.physical_pe_row_num;
         int pcol = config_.physical_pe_col_num;
 
+        double effective_c_density = (c_density > 0) ? c_density
+                                     : std::max(0.0, K * densityA * densityB);
+
         MatrixParams params{
             M, K, N,
             densityA, densityB,
-            std::max(0.0, K * densityA * densityB),
+            effective_c_density,
             prow, pcol,
             0.0, 0.0, // m_variance, k_variance
             true, // sparsity_aware
@@ -299,7 +312,12 @@ int main(int argc, char* argv[]) {
         };
 
         Matrix<int32_t> C_dense;
-        std::tie(A, B, C_dense) = gen_uniform_matrix(params);
+        if (c_density > 0) {
+            std::cerr << "[gen] Using gen_rand_matrix (c_density=" << c_density << ")" << std::endl;
+            std::tie(A, B, C_dense) = gen_rand_matrix(params);
+        } else {
+            std::tie(A, B, C_dense) = gen_uniform_matrix(params);
+        }
         C_csr = sparse_multiply_csr(A.to_csr(), B.to_csr());
     }
 
