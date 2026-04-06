@@ -123,7 +123,7 @@ def main():
     args = parser.parse_args()
 
     mem_csv = args.mem_csv or os.path.join(
-        PROJECT_ROOT, "output", "ablation_mapping_suitesparse.csv")
+        PROJECT_ROOT, "output", "ablation_mapping_suitesparse_results.csv")
     out_path = args.output or os.path.join(
         PROJECT_ROOT, "output", "plots", "ablation_mapping.pdf")
 

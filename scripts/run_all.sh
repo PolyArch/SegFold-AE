@@ -187,15 +187,10 @@ echo ""
 
 # ── Step 4: Ablation mapping ────────────────────────────────────────────
 
-echo "[$(ts)] Step 4: Running ablation mapping (with memory hierarchy)..."
+echo "[$(ts)] Step 4: Running ablation mapping..."
 python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
     --ablation mapping-paper --jobs "$MAX_JOBS"
-echo "[$(ts)] Step 4a: Ablation mapping (with mem) complete."
-
-echo "[$(ts)] Step 4b: Running ablation mapping (without memory hierarchy)..."
-python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
-    --ablation mapping-paper-nomem --jobs "$MAX_JOBS"
-echo "[$(ts)] Step 4b: Ablation mapping (without mem) complete."
+echo "[$(ts)] Step 4: Ablation mapping complete."
 echo ""
 
 # ── Step 5: Window size ablation ────────────────────────────────────────
@@ -248,7 +243,7 @@ done
 if [ -f "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" ]; then
     echo "  Running plot_ablation_mapping.py ..."
     python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" \
-        --mem-csv "$OUT_DIR/ablation_mapping_suitesparse.csv" \
+        --mem-csv "$OUT_DIR/ablation_mapping_suitesparse_results.csv" \
         --output "$OUT_DIR/plots/ablation_mapping.pdf"
 fi
 # Synthetic ablation plots (window size, crossbar width, k-reordering)

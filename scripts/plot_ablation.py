@@ -124,14 +124,16 @@ def plot_sweep(results, configs_ordered, param_values, param_labels,
     plt.close()
 
 
-def compute_k_reordering_summary(results, baseline_cfg, configs, labels):
+def compute_k_reordering_summary(results, baseline_cfg, configs, labels,
+                                  plots_dir=None):
     """Compute average relative speedup/slowdown for k-reordering configs."""
     sizes = sorted(set(parse_run_id(r)[0] for r in results))
     densities = sorted(set(parse_run_id(r)[1] for r in results))
 
-    print("\n" + "=" * 70)
-    print("K-Reordering / Multi B-Row Ablation Summary")
-    print("=" * 70)
+    lines = []
+    lines.append("=" * 70)
+    lines.append("K-Reordering / Multi B-Row Ablation Summary")
+    lines.append("=" * 70)
 
     # Detailed table
     header = f"{'Config':25s}"
@@ -139,8 +141,8 @@ def compute_k_reordering_summary(results, baseline_cfg, configs, labels):
         for da in densities:
             header += f"  N={size},d={da}"
     header += f"  {'Avg':>10s}"
-    print(header)
-    print("-" * len(header))
+    lines.append(header)
+    lines.append("-" * len(header))
 
     for cfg, label in zip(configs, labels):
         if cfg == baseline_cfg:
@@ -168,13 +170,19 @@ def compute_k_reordering_summary(results, baseline_cfg, configs, labels):
             avg = np.exp(np.mean(np.log(ratios)))
             row += f"  {avg:>10.3f}x"
             if avg >= 1:
-                print(f"{row}  (avg {(avg-1)*100:.1f}% faster)")
+                lines.append(f"{row}  (avg {(avg-1)*100:.1f}% faster)")
             else:
-                print(f"{row}  (avg {(1-avg)*100:.1f}% slower)")
+                lines.append(f"{row}  (avg {(1-avg)*100:.1f}% slower)")
         else:
-            print(row)
+            lines.append(row)
 
-    print()
+    text = "\n".join(lines)
+    print("\n" + text + "\n")
+
+    if plots_dir is not None:
+        out_path = Path(plots_dir) / "ablation_k_reordering.txt"
+        out_path.write_text(text + "\n")
+        print(f"Saved: {out_path}")
 
 
 def main():
@@ -225,7 +233,8 @@ def main():
         if results:
             configs = ["segfold", "no-k-reorder", "multi-b-row"]
             labels = ["SegFold (baseline)", "No K-Reorder", "Multi B-Row per Row"]
-            compute_k_reordering_summary(results, "segfold", configs, labels)
+            compute_k_reordering_summary(results, "segfold", configs, labels,
+                                         plots_dir=plots_dir)
 
     # Ablation mapping on SuiteSparse is handled by plot_ablation_mapping.py
 

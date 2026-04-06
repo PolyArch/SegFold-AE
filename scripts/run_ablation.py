@@ -8,8 +8,6 @@ Ablation groups on synthetic matrices:
 
 Ablation groups on SuiteSparse matrices:
   - mapping-paper:       Ablation mapping with memory hierarchy
-  - mapping-paper-nomem: Ablation mapping without memory hierarchy
-
 Usage:
     python3 scripts/run_ablation.py output/my_run
     python3 scripts/run_ablation.py output/my_run --ablation mapping-paper
@@ -53,15 +51,10 @@ ABLATIONS = {
         "ideal":   "configs/ablation-map-paper-ideal.yaml",
         "zero":    "configs/ablation-map-paper-zero.yaml",
     },
-    "mapping-paper-nomem": {
-        "segfold": "configs/ablation-map-paper-nomem-segfold.yaml",
-        "ideal":   "configs/ablation-map-paper-nomem-ideal.yaml",
-        "zero":    "configs/ablation-map-paper-nomem-zero.yaml",
-    },
 }
 
 # Ablation groups that run on SuiteSparse matrices instead of synthetic
-SUITESPARSE_ABLATIONS = {"mapping-paper", "mapping-paper-nomem"}
+SUITESPARSE_ABLATIONS = {"mapping-paper"}
 
 SUITESPARSE_MATRICES = [
     "fv1", "flowmeter0", "delaunay_n13",
