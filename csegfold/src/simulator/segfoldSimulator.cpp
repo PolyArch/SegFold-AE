@@ -149,6 +149,7 @@ void SegfoldSimulator::run() {
     // Copy B row demand histogram from controller to stats
     stats.b_row_demand_hist = controller.b_row_demand_hist;
 
+    stats.success = success;
     stats.c_nnz = acc_output.nnz();
 }
 

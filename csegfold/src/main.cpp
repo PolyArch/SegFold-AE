@@ -171,8 +171,6 @@ int main(int argc, char* argv[]) {
         try {
             sim.run();
             if (sim.success) {
-                std::cout << "Simulation completed successfully in " << sim.stats.cycle << " cycles" << std::endl;
-
                 // Verify against C_csr
                 bool match = true;
                 sim.acc_output.for_each([&](int i, int j, int64_t actual_val) {
@@ -197,7 +195,12 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
-                if (match) std::cout << "[INFO] All outputs match!" << std::endl;
+                if (match) {
+                    std::cout << "Simulation completed successfully in " << sim.stats.cycle << " cycles" << std::endl;
+                } else {
+                    std::cerr << "Simulation output verification failed" << std::endl;
+                    sim.success = false;
+                }
             } else {
                 std::cout << "Simulation did not complete successfully" << std::endl;
             }
@@ -216,7 +219,7 @@ int main(int argc, char* argv[]) {
             sim.dump_trace((tmp_dir / (prefix + "_trace.json")).string());
         }
 
-        return 0;
+        return sim.success ? 0 : 1;
     }
 
     Matrix<int8_t> A;
@@ -334,8 +337,6 @@ int main(int argc, char* argv[]) {
         sim.run();
         
         if (sim.success) {
-            std::cout << "Simulation completed successfully in " << sim.stats.cycle << " cycles" << std::endl;
-
             // Verify: iterate sparse acc_output and check against C_csr
             bool match = true;
             sim.acc_output.for_each([&](int i, int j, int64_t actual_val) {
@@ -362,7 +363,10 @@ int main(int argc, char* argv[]) {
                 }
             }
             if (match) {
-                std::cout << "[INFO] All outputs match!" << std::endl;
+                std::cout << "Simulation completed successfully in " << sim.stats.cycle << " cycles" << std::endl;
+            } else {
+                std::cerr << "Simulation output verification failed" << std::endl;
+                sim.success = false;
             }
         } else {
             std::cout << "Simulation did not complete successfully" << std::endl;
@@ -389,7 +393,7 @@ int main(int argc, char* argv[]) {
         sim.dump_trace(trace_path.string());
     }
 
-    return 0;
+    return sim.success ? 0 : 1;
 }
 
 
