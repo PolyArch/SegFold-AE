@@ -249,8 +249,7 @@ if [ -f "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" ]; then
     echo "  Running plot_ablation_mapping.py ..."
     python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" \
         --mem-csv "$OUT_DIR/ablation_mapping_suitesparse.csv" \
-        --nomem-csv "$OUT_DIR/ablation_mapping_suitesparse_nomem.csv" \
-        --output "$OUT_DIR/plots/ablation_mapping_suitesparse.pdf"
+        --output "$OUT_DIR/plots/ablation_mapping.pdf"
 fi
 # Synthetic ablation plots (window size, crossbar width, k-reordering)
 if [ -f "$PROJECT_ROOT/scripts/plot_ablation.py" ]; then

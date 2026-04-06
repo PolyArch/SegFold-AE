@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Plot ablation mapping on SuiteSparse matrices.
 
-Produces two subplots (with and without memory hierarchy), showing
-speedup of each mapping strategy normalized to Zero-Offset.
+Produces a bar chart showing speedup of each mapping strategy
+normalized to Zero-Offset (with memory hierarchy).
 
 Usage:
     python3 scripts/plot_ablation_mapping.py
@@ -29,9 +29,9 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Mapping strategies: (csv_column_prefix, label, color)
 STRATEGIES = [
-    ("zero",    "Zero-Offset (Memory-Primary)",        "#FFD54F"),
-    ("ideal",   "Direct-Routing (Network-Primary)",     "#F4A7BB"),
-    ("segfold", "SegFold (Ours)",                       "#BBDEFB"),
+    ("zero",    "Zero-Offset",        "#FFD54F"),
+    ("ideal",   "Ideal-Network",      "#F4A7BB"),
+    ("segfold", "SegFold (Ours)",     "#BBDEFB"),
 ]
 
 
@@ -119,32 +119,24 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mem-csv", default=None,
                         help="Path to ablation_mapping_suitesparse.csv")
-    parser.add_argument("--nomem-csv", default=None,
-                        help="Path to ablation_mapping_suitesparse_nomem.csv")
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
 
     mem_csv = args.mem_csv or os.path.join(
         PROJECT_ROOT, "output", "ablation_mapping_suitesparse.csv")
-    nomem_csv = args.nomem_csv or os.path.join(
-        PROJECT_ROOT, "output", "ablation_mapping_suitesparse_nomem.csv")
     out_path = args.output or os.path.join(
-        PROJECT_ROOT, "output", "plots", "ablation_mapping_suitesparse.pdf")
+        PROJECT_ROOT, "output", "plots", "ablation_mapping.pdf")
 
     mem_matrices, mem_speedups = load_and_compute(mem_csv)
-    nomem_matrices, nomem_speedups = load_and_compute(nomem_csv)
 
-    y_max = 2.5
+    y_max = 1.75
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 4.5))
+    fig, ax = plt.subplots(figsize=(12, 4.5))
 
-    plot_panel(ax1, nomem_matrices, nomem_speedups,
-               "Without Memory Hierarchy", y_max)
-    plot_panel(ax2, mem_matrices, mem_speedups,
-               "With Memory Hierarchy", y_max)
+    plot_panel(ax, mem_matrices, mem_speedups, "", y_max)
 
-    # Shared legend at top
-    handles, labels = ax1.get_legend_handles_labels()
+    # Legend at top
+    handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", fontsize=11, ncol=len(STRATEGIES),
                framealpha=0.95, edgecolor="gray",
                handlelength=1.5, columnspacing=1.0,
