@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Plot mapping ablation on SuiteSparse matrices.
+"""Plot ablation mapping on SuiteSparse matrices.
 
 Produces two subplots (with and without memory hierarchy), showing
 speedup of each mapping strategy normalized to Zero-Offset.
 
 Usage:
-    python3 scripts/plot_mapping_ablation.py
-    python3 scripts/plot_mapping_ablation.py --output output/plots/mapping_ablation.pdf
+    python3 scripts/plot_ablation_mapping.py
+    python3 scripts/plot_ablation_mapping.py --output output/plots/ablation_mapping.pdf
 """
 
 import argparse
@@ -118,18 +118,18 @@ def plot_panel(ax, matrices, speedups, title, y_max):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mem-csv", default=None,
-                        help="Path to mapping_ablation_suitesparse.csv")
+                        help="Path to ablation_mapping_suitesparse.csv")
     parser.add_argument("--nomem-csv", default=None,
-                        help="Path to mapping_ablation_suitesparse_nomem.csv")
+                        help="Path to ablation_mapping_suitesparse_nomem.csv")
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
 
     mem_csv = args.mem_csv or os.path.join(
-        PROJECT_ROOT, "output", "mapping_ablation_suitesparse.csv")
+        PROJECT_ROOT, "output", "ablation_mapping_suitesparse.csv")
     nomem_csv = args.nomem_csv or os.path.join(
-        PROJECT_ROOT, "output", "mapping_ablation_suitesparse_nomem.csv")
+        PROJECT_ROOT, "output", "ablation_mapping_suitesparse_nomem.csv")
     out_path = args.output or os.path.join(
-        PROJECT_ROOT, "output", "plots", "mapping_ablation_suitesparse.pdf")
+        PROJECT_ROOT, "output", "plots", "ablation_mapping_suitesparse.pdf")
 
     mem_matrices, mem_speedups = load_and_compute(mem_csv)
     nomem_matrices, nomem_speedups = load_and_compute(nomem_csv)

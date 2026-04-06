@@ -23,7 +23,6 @@ SS_URL = "https://suitesparse-collection-website.herokuapp.com/MM/{group}/{name}
 # (name, SuiteSparse group)
 ALL_MATRICES = [
     # Square (overall + breakdown)
-    ("bcsstk01", "HB"),
     ("bcsstk03", "HB"),
     ("bcsstk18", "HB"),
     ("bcspwr06", "HB"),

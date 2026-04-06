@@ -7,8 +7,8 @@ Ablation groups on synthetic matrices:
   - crossbar-width: B loader row limit sweep (1, 2, 4, 8, 16)
 
 Ablation groups on SuiteSparse matrices:
-  - mapping-paper:       Mapping ablation with memory hierarchy
-  - mapping-paper-nomem: Mapping ablation without memory hierarchy
+  - mapping-paper:       Ablation mapping with memory hierarchy
+  - mapping-paper-nomem: Ablation mapping without memory hierarchy
 
 Usage:
     python3 scripts/run_ablation.py output/my_run
@@ -33,18 +33,18 @@ ABLATIONS = {
         "window-4":  "configs/ablation-window-4.yaml",
         "window-8":  "configs/ablation-window-8.yaml",
         "window-16": "configs/ablation-window-16.yaml",
-        "window-32": "configs/segfold.yaml",
+        "window-32": "configs/ablation-baseline.yaml",
         "window-64": "configs/ablation-window-64.yaml",
     },
     "k-reordering": {
-        "segfold":      "configs/segfold.yaml",
+        "segfold":      "configs/ablation-baseline.yaml",
         "no-k-reorder": "configs/ablation-no-k-reordering.yaml",
         "multi-b-row":  "configs/ablation-multi-b-row-per-row.yaml",
     },
     "crossbar-width": {
         "brl-1":  "configs/ablation-brl-1.yaml",
         "brl-2":  "configs/ablation-brl-2.yaml",
-        "brl-4":  "configs/segfold.yaml",
+        "brl-4":  "configs/ablation-baseline.yaml",
         "brl-8":  "configs/ablation-brl-8.yaml",
         "brl-16": "configs/ablation-brl-16.yaml",
     },
@@ -242,7 +242,7 @@ def run_ablation_group(binary, ablation_name, configs, out_dir, tmp_dir, timeout
 
 def run_suitesparse_ablation(binary, ablation_name, configs, abl_out,
                               tmp_dir, timeout, jobs, matrix_dir):
-    """Run all configs x SuiteSparse matrices for a mapping ablation."""
+    """Run all configs x SuiteSparse matrices for a ablation mapping."""
     tasks = []
     for config_name, config_path in configs.items():
         config = PROJECT_ROOT / config_path
@@ -335,7 +335,7 @@ def main():
     parser.add_argument("--matrix-dir", type=Path,
                         default=PROJECT_ROOT / "benchmarks" / "data" / "suitesparse")
     parser.add_argument("--jobs", type=int, default=1)
-    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--timeout", type=int, default=3600)
     args = parser.parse_args()
 
     binary = PROJECT_ROOT / "csegfold" / "build" / "csegfold"

@@ -2,6 +2,7 @@
 #include "csegfold/matrix/generator.hpp"
 #include <cassert>
 #include <algorithm>
+#include <climits>
 
 namespace csegfold {
 
@@ -584,8 +585,28 @@ void MatrixLoader::dense_tiling() {
 
     int M_tiles = (M + physical_pe_row_num - 1) / physical_pe_row_num;
 
-    if (cfg.dense_tiling_full_n) {
-        // New behavior: tile only M, each tile spans full N
+    bool use_full_n = cfg.dense_tiling_full_n;
+
+    if (!use_full_n) {
+        // Check if tiling both M and N would overflow total_B_rows in
+        // process_tiles(). total_B_rows = num_tiles * K; if that exceeds
+        // INT_MAX the indptr vector allocation fails with SIGABRT.
+        int N_tiles_check = (N + physical_pe_col_num - 1) / physical_pe_col_num;
+        int64_t num_tiles = static_cast<int64_t>(M_tiles) * N_tiles_check;
+        int64_t total_B_rows = num_tiles * static_cast<int64_t>(K);
+        const int64_t safe_limit = static_cast<int64_t>(INT_MAX) / 2;
+
+        if (total_B_rows > safe_limit) {
+            log->info("Dense tiling: M*N tiling would produce " +
+                      std::to_string(num_tiles) + " tiles (total_B_rows=" +
+                      std::to_string(total_B_rows) +
+                      "), exceeding safe limit. Falling back to full-N tiling.");
+            use_full_n = true;
+        }
+    }
+
+    if (use_full_n) {
+        // Tile only M, each tile spans full N
         if (verbose()) {
             log->info("Dense tiling: " + std::to_string(M_tiles) + " M-tiles (full N per tile)");
         }
@@ -597,7 +618,7 @@ void MatrixLoader::dense_tiling() {
             tiles.push_back(std::make_tuple(m_start, m_end, 0, N));
         }
     } else {
-        // Old behavior: tile both M and N with pe_row_num x pe_col_num
+        // Tile both M and N with pe_row_num x pe_col_num
         int N_tiles = (N + physical_pe_col_num - 1) / physical_pe_col_num;
 
         if (verbose()) {

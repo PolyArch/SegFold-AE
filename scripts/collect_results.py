@@ -388,7 +388,7 @@ def collect_paper_results(output_dir: Path):
                             df["zero_cycles"] / df["segfold_cycles"]
                         ).round(2)
                     suffix = "_nomem" if "nomem" in group_name else ""
-                    out_path = output_dir / f"mapping_ablation_suitesparse{suffix}.csv"
+                    out_path = output_dir / f"ablation_mapping_suitesparse{suffix}.csv"
                     df.to_csv(out_path, index=False)
                     written.append(out_path)
                     print(f"Wrote {len(df)} rows -> {out_path}")

@@ -4,8 +4,8 @@
 Reads breakdown_results.csv with columns:
     matrix, base_cycles, +tiling_cycles, +folding_cycles, +dynmap_cycles, full_cycles
 
-Each matrix gets one stacked bar. Reference (1.0x) is base_cycles when > 0,
-otherwise +tiling_cycles. Segments show incremental speedup.
+Each matrix gets one stacked bar. Reference (1.0x) is base_cycles when > 0
+and SegmentBC helps, otherwise +tiling_cycles. Segments show incremental speedup.
 
 Usage:
     python3 scripts/plot_breakdown.py OUTPUT_DIR
@@ -62,8 +62,10 @@ def main():
     dynmap = df["+dynmap_cycles"].values.astype(float)
     full = df["full_cycles"].values.astype(float)
 
-    # Reference: base_cycles if > 0, else +tiling_cycles
-    ref = np.where(base > 0, base, tiling)
+    # Reference: base_cycles when > 0 and SegmentBC helps; otherwise tiling_cycles
+    has_base = base > 0
+    segbc_hurts = has_base & (tiling > base)
+    ref = np.where(has_base & ~segbc_hurts, base, tiling)
 
     # Speedup = ref / config_cycles
     su_tiling = ref / tiling
@@ -71,11 +73,9 @@ def main():
     su_dynmap = ref / dynmap
     su_full = ref / full
 
-    has_base = base > 0
-
     # Segments (incremental)
     seg_base = np.ones(n)
-    seg_tiling = np.where(has_base, su_tiling - 1.0, 0.0)
+    seg_tiling = np.where(has_base & ~segbc_hurts, su_tiling - 1.0, 0.0)
     seg_folding = su_folding - su_tiling
     seg_dynmap = su_dynmap - su_folding
     seg_window = su_full - su_dynmap
@@ -90,12 +90,33 @@ def main():
         ("+ SelectA",          "#E57373"),
     ]
 
+    # Geomean of cumulative speedups across all matrices
+    geo_tiling = np.exp(np.mean(np.log(np.maximum(su_tiling, 1e-10))))
+    geo_folding = np.exp(np.mean(np.log(np.maximum(su_folding, 1e-10))))
+    geo_dynmap = np.exp(np.mean(np.log(np.maximum(su_dynmap, 1e-10))))
+    geo_full = np.exp(np.mean(np.log(np.maximum(su_full, 1e-10))))
+
+    # Incremental geomean segments
+    geo_segments = np.array([[1.0],
+                             [max(geo_tiling - 1.0, 0.0)],
+                             [geo_folding - geo_tiling],
+                             [geo_dynmap - geo_folding],
+                             [geo_full - geo_dynmap]])
+
     # Sort by full speedup descending
     order = np.argsort(-su_full)
     matrices = [df["matrix"].tolist()[i] for i in order]
     segments = segments[:, order]
     su_full = su_full[order]
     has_base = has_base[order]
+    segbc_hurts = segbc_hurts[order]
+
+    # Append GeoMean bar
+    matrices.append("GeoMean")
+    segments = np.hstack([segments, geo_segments])
+    su_full = np.append(su_full, geo_full)
+    has_base = np.append(has_base, True)
+    segbc_hurts = np.append(segbc_hurts, False)
 
     n = len(matrices)
     fig, ax = plt.subplots(figsize=(max(14, n * 1.2), 7))
@@ -106,16 +127,30 @@ def main():
     for i, (label, color) in enumerate(labels_colors):
         visible = np.minimum(segments[i], Y_MAX - bottom)
         visible = np.maximum(visible, 0)
-        ax.bar(x, visible, width, bottom=bottom, label=label, color=color,
-               edgecolor="black", linewidth=0.5)
+        bars = ax.bar(x, visible, width, bottom=bottom, label=label, color=color,
+                      edgecolor="black", linewidth=0.5)
+        # Bold border on GeoMean bar
+        bars[-1].set_edgecolor("black")
+        bars[-1].set_linewidth(1.5)
         bottom += segments[i]
+
+    # Vertical separator before GeoMean
+    ax.axvline(x=n - 1.5, color="gray", linestyle="-", linewidth=0.8)
 
     # Label total speedup
     for j in range(n):
-        suffix = "" if has_base[j] else "*"
+        is_geomean = (j == n - 1)
+        if not has_base[j]:
+            suffix = "*"
+        elif segbc_hurts[j]:
+            suffix = "\u2020"
+        else:
+            suffix = ""
         y_pos = min(su_full[j], Y_MAX) + 0.05
+        fw = "bold" if is_geomean else "normal"
         ax.text(x[j], y_pos, f"{su_full[j]:.1f}x{suffix}",
-                ha="center", va="bottom", fontsize=10, clip_on=False)
+                ha="center", va="bottom", fontsize=10, fontweight=fw,
+                clip_on=False)
 
     ax.axhline(y=1.0, color="gray", linestyle="--", linewidth=0.5)
     ax.grid(axis="y", alpha=0.3)
@@ -126,14 +161,20 @@ def main():
     ax.set_ylabel("speedup", fontsize=20)
 
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles[::-1], labels[::-1], fontsize=18,
+    ax.legend(handles, labels, fontsize=18,
               loc="upper center", ncol=5, framealpha=0.95, edgecolor="gray",
               handlelength=1.5, columnspacing=1.0,
               bbox_to_anchor=(0.5, 1.22))
 
-    ax.annotate("* base timed out; uses +tiling as 1.0x reference",
-                xy=(0.01, 0.01), xycoords="axes fraction", fontsize=9,
-                fontstyle="italic", color="gray")
+    notes = []
+    if (~has_base).any():
+        notes.append("* base timed out; uses +SegmentBC as 1.0x reference")
+    if segbc_hurts.any():
+        notes.append("\u2020 SegmentBC slows down; uses +SegmentBC as 1.0x reference")
+    if notes:
+        ax.annotate("\n".join(notes),
+                    xy=(0.01, 0.01), xycoords="axes fraction", fontsize=9,
+                    fontstyle="italic", color="gray")
 
     plt.tight_layout()
 

@@ -126,7 +126,7 @@ Five configurations are run per matrix, progressively enabling features:
 
 **Output:** `output/my_run/breakdown/{config}/sim_{matrix}_stats.json`
 
-### Step 6: Run Mapping Ablation Experiment
+### Step 6: Run Ablation Mapping Experiment
 
 Evaluates the impact of different PE-to-memory mapping strategies on 16 SuiteSparse matrices, both with and without the memory hierarchy.
 
@@ -150,7 +150,24 @@ Three mapping strategies are compared:
 
 **Output:** `output/my_run/ablation/{mapping-paper,mapping-paper-nomem}/{config}/sim_{matrix}_stats.json`
 
-### Step 7: Collect Results
+### Step 7: Run Synthetic Ablation Experiments
+
+Evaluates the impact of window size, crossbar width, and K-reordering on synthetic matrices at sizes 256, 512, 1024 with densities 0.05 and 0.1.
+
+```bash
+# Window size sweep (1, 4, 8, 16, 32, 64)
+python3 scripts/run_ablation.py output/my_run --ablation window-size --jobs 4
+
+# Crossbar width sweep (1, 2, 4, 8, 16)
+python3 scripts/run_ablation.py output/my_run --ablation crossbar-width --jobs 4
+
+# K-reordering strategies
+python3 scripts/run_ablation.py output/my_run --ablation k-reordering --jobs 4
+```
+
+**Output:** `output/my_run/ablation/{window-size,crossbar-width,k-reordering}/{config}/sim_*_stats.json`
+
+### Step 8: Collect Results
 
 ```bash
 python3 scripts/collect_results.py output/my_run
@@ -160,26 +177,30 @@ Parses all `*_stats.json` files and produces:
 - `overall_results.csv` — SegFold cycle counts for overall performance
 - `nonsquare_results.csv` — SegFold cycle counts for non-square matrices
 - `breakdown_results.csv` — Cycle counts per config per matrix (pivoted)
-- `mapping_ablation_suitesparse.csv` — Mapping ablation with memory hierarchy
-- `mapping_ablation_suitesparse_nomem.csv` — Mapping ablation without memory hierarchy
+- `ablation_mapping_suitesparse.csv` — Ablation mapping with memory hierarchy
+- `ablation_mapping_suitesparse_nomem.csv` — Ablation mapping without memory hierarchy
 
-### Step 8: Generate Plots
+### Step 9: Generate Plots
 
 ```bash
 python3 scripts/plot_overall.py output/my_run
 python3 scripts/plot_nonsquare.py output/my_run
 python3 scripts/plot_breakdown.py output/my_run
-python3 scripts/plot_mapping_ablation.py \
-    --mem-csv output/my_run/mapping_ablation_suitesparse.csv \
-    --nomem-csv output/my_run/mapping_ablation_suitesparse_nomem.csv \
-    --output output/my_run/plots/mapping_ablation_suitesparse.pdf
+python3 scripts/plot_ablation_mapping.py \
+    --mem-csv output/my_run/ablation_mapping_suitesparse.csv \
+    --nomem-csv output/my_run/ablation_mapping_suitesparse_nomem.csv \
+    --output output/my_run/plots/ablation_mapping_suitesparse.pdf
+python3 scripts/plot_ablation.py output/my_run
 ```
 
 Generates PDF and PNG figures in `output/my_run/plots/`:
 - `overall_speedup.pdf` — Bar chart: SegFold vs Spada vs Flexagon (normalized to Spada)
 - `nonsquare_speedup.pdf` — Bar chart: SegFold vs Spada on rectangular matrices
 - `breakdown_speedup.pdf` — Stacked bars: incremental speedup per optimization
-- `mapping_ablation_suitesparse.pdf` — Mapping strategy comparison (with/without memory hierarchy)
+- `ablation_mapping_suitesparse.pdf` — Mapping strategy comparison (with/without memory hierarchy)
+- `ablation_window_size.pdf` — Window size sweep (normalized speedup)
+- `ablation_crossbar_width.pdf` — Crossbar width sweep (normalized speedup)
+- K-reordering summary printed to console (average relative speedup/slowdown)
 
 ## Experiment-to-Paper Mapping
 
@@ -188,7 +209,11 @@ Generates PDF and PNG figures in `output/my_run/plots/`:
 | `run_overall.py` | Overall performance | SegFold vs Spada vs Flexagon on 11 matrices |
 | `run_nonsquare.py` | Non-square performance | SegFold vs Spada on 6 rectangular matrices |
 | `run_breakdown.py` | Speedup breakdown | Incremental ablation (5 configs x 12 matrices) |
-| `run_ablation.py` | Mapping ablation | Mapping strategy comparison (3 configs x 16 matrices) |
+| `run_ablation.py --ablation mapping-paper` | Ablation mapping | Mapping strategy comparison (3 x 16, with mem) |
+| `run_ablation.py --ablation mapping-paper-nomem` | Ablation mapping | Mapping strategy comparison (3 x 16, no mem) |
+| `run_ablation.py --ablation window-size` | Window size sweep | B loader window size (6 configs, synthetic) |
+| `run_ablation.py --ablation crossbar-width` | Crossbar width sweep | B loader row limit (5 configs, synthetic) |
+| `run_ablation.py --ablation k-reordering` | K-reordering | K-reorder strategies (3 configs, synthetic) |
 
 ## Configuration
 
@@ -251,12 +276,12 @@ SegFold-AE/
 │   ├── run_overall.py               # Overall performance (11 matrices)
 │   ├── run_nonsquare.py             # Non-square performance (6 matrices)
 │   ├── run_breakdown.py             # Speedup breakdown (5 x 12)
-│   ├── run_ablation.py              # Mapping ablation (3 x 16 x 2)
+│   ├── run_ablation.py              # Ablation mapping (3 x 16 x 2)
 │   ├── collect_results.py           # JSON stats -> CSV
 │   ├── plot_overall.py              # Overall speedup figure
 │   ├── plot_nonsquare.py            # Non-square speedup figure
 │   ├── plot_breakdown.py            # Breakdown stacked bar figure
-│   └── plot_mapping_ablation.py     # Mapping ablation figure
+│   └── plot_ablation_mapping.py     # Ablation mapping figure
 └── hardware/                        # RTL & synthesis reports
     ├── rtl/
     └── reports/
@@ -271,8 +296,11 @@ With default settings on a machine with 16 GB RAM and 8 cores:
 | Overall performance (11 matrices) | 11 | 10-20 min |
 | Non-square performance (6 matrices) | 6 | 5-15 min |
 | Speedup breakdown (5 configs x 12 matrices) | 60 | 30-60 min |
-| Mapping ablation (3 configs x 16 matrices x 2) | 96 | 30-60 min |
-| **Total** | **173** | **~2 hours** |
+| Ablation mapping (3 configs x 16 matrices x 2) | 96 | 30-60 min |
+| Window size ablation (6 configs, synthetic) | 36 | 5-10 min |
+| Crossbar width ablation (5 configs, synthetic) | 30 | 5-10 min |
+| K-reordering ablation (3 configs, synthetic) | 18 | 5-10 min |
+| **Total** | **257** | **~2-3 hours** |
 
 ## License
 
