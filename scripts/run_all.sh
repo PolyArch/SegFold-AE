@@ -147,13 +147,14 @@ echo ""
 echo "=========================================="
 echo " Experiment Plan"
 echo "=========================================="
-echo " 1. Overall performance    (11 matrices)         ~15-30 min"
-echo " 2. Non-square performance (6 matrices)          ~10-20 min"
-echo " 3. Speedup breakdown      (5 configs x 12 mat)  ~30-60 min"
-echo " 4. Collect results into CSV"
-echo " 5. Generate plots"
+echo " 1. Overall performance       (11 matrices)          ~15-30 min"
+echo " 2. Non-square performance    (6 matrices)           ~10-20 min"
+echo " 3. Speedup breakdown         (5 configs x 12 mat)   ~30-60 min"
+echo " 4. Mapping ablation          (3 configs x 16 mat x2) ~30-60 min"
+echo " 5. Collect results into CSV"
+echo " 6. Generate plots"
 echo ""
-echo " Estimated total runtime: 1-2 hours (depends on hardware)"
+echo " Estimated total runtime: 2-3 hours (depends on hardware)"
 echo "=========================================="
 echo ""
 
@@ -181,20 +182,33 @@ python3 "$PROJECT_ROOT/scripts/run_breakdown.py" "$OUT_DIR" \
 echo "[$(ts)] Step 3: Speedup breakdown complete."
 echo ""
 
-# ── Step 4: Collect results ──────────────────────────────────────────────
+# ── Step 4: Mapping ablation ────────────────────────────────────────────
 
-echo "[$(ts)] Step 4: Collecting results..."
+echo "[$(ts)] Step 4: Running mapping ablation (with memory hierarchy)..."
+python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
+    --ablation mapping-paper --jobs "$MAX_JOBS"
+echo "[$(ts)] Step 4a: Mapping ablation (with mem) complete."
+
+echo "[$(ts)] Step 4b: Running mapping ablation (without memory hierarchy)..."
+python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
+    --ablation mapping-paper-nomem --jobs "$MAX_JOBS"
+echo "[$(ts)] Step 4b: Mapping ablation (without mem) complete."
+echo ""
+
+# ── Step 5: Collect results ──────────────────────────────────────────────
+
+echo "[$(ts)] Step 5: Collecting results..."
 if [ -f "$PROJECT_ROOT/scripts/collect_results.py" ]; then
     python3 "$PROJECT_ROOT/scripts/collect_results.py" "$OUT_DIR"
-    echo "[$(ts)] Step 4: Results collected."
+    echo "[$(ts)] Step 5: Results collected."
 else
     echo "[run_all] WARNING: scripts/collect_results.py not found, skipping."
 fi
 echo ""
 
-# ── Step 5: Generate plots ───────────────────────────────────────────────
+# ── Step 6: Generate plots ───────────────────────────────────────────────
 
-echo "[$(ts)] Step 5: Generating plots..."
+echo "[$(ts)] Step 6: Generating plots..."
 for plot_script in plot_overall.py plot_nonsquare.py plot_breakdown.py; do
     if [ -f "$PROJECT_ROOT/scripts/$plot_script" ]; then
         echo "  Running $plot_script ..."
@@ -203,14 +217,18 @@ for plot_script in plot_overall.py plot_nonsquare.py plot_breakdown.py; do
         echo "  WARNING: scripts/$plot_script not found, skipping."
     fi
 done
-# Also run legacy plot_results.py if present
-if [ -f "$PROJECT_ROOT/scripts/plot_results.py" ]; then
-    python3 "$PROJECT_ROOT/scripts/plot_results.py" "$OUT_DIR"
+# Mapping ablation plot (reads CSVs from output root)
+if [ -f "$PROJECT_ROOT/scripts/plot_mapping_ablation.py" ]; then
+    echo "  Running plot_mapping_ablation.py ..."
+    python3 "$PROJECT_ROOT/scripts/plot_mapping_ablation.py" \
+        --mem-csv "$OUT_DIR/mapping_ablation_suitesparse.csv" \
+        --nomem-csv "$OUT_DIR/mapping_ablation_suitesparse_nomem.csv" \
+        --output "$OUT_DIR/plots/mapping_ablation_suitesparse.pdf"
 fi
-echo "[$(ts)] Step 5: Plots generated."
+echo "[$(ts)] Step 6: Plots generated."
 echo ""
 
-# ── Step 6: Summary and comparison ───────────────────────────────────────
+# ── Step 7: Summary and comparison ───────────────────────────────────────
 
 echo "=========================================="
 echo " Summary"

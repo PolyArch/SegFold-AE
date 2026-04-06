@@ -81,6 +81,7 @@ std::unordered_map<std::string, std::string> Config::to_dict() const {
     result["enable_decompose_a_row"] = enable_decompose_a_row ? "true" : "false";
     result["num_split"] = std::to_string(num_split);
     result["enable_dynamic_tiling"] = enable_dynamic_tiling ? "true" : "false";
+    result["dense_tiling_full_n"] = dense_tiling_full_n ? "true" : "false";
     result["tile_c_multiplier"] = std::to_string(tile_c_multiplier);
     result["enable_a_csc"] = enable_a_csc ? "true" : "false";
     result["enable_memory_hierarchy"] = enable_memory_hierarchy ? "true" : "false";
@@ -545,6 +546,7 @@ void update_cfg(const std::unordered_map<std::string, std::string>& kwargs) {
         else if (key == "enable_decompose_a_row") config_.enable_decompose_a_row = (value == "true");
         else if (key == "num_split") config_.num_split = std::stoi(value);
         else if (key == "enable_dynamic_tiling") config_.enable_dynamic_tiling = (value == "true");
+        else if (key == "dense_tiling_full_n") config_.dense_tiling_full_n = (value == "true");
         else if (key == "tile_c_multiplier") config_.tile_c_multiplier = std::stod(value);
         else if (key == "enable_a_csc") config_.enable_a_csc = (value == "true");
         else if (key == "enable_memory_hierarchy") config_.enable_memory_hierarchy = (value == "true");

@@ -46,7 +46,7 @@ update_on_move: true
 update_with_round_robin: false
 enable_decompose_a_row: false
 num_split: 1
-enable_dynamic_tiling: false
+enable_dynamic_tiling: true
 tile_c_multiplier: 1.0
 enable_a_csc: true
 enable_memory_hierarchy: true

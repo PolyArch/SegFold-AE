@@ -584,15 +584,38 @@ void MatrixLoader::dense_tiling() {
 
     int M_tiles = (M + physical_pe_row_num - 1) / physical_pe_row_num;
 
-    if (verbose()) {
-        log->info("Dense tiling: " + std::to_string(M_tiles) + " M-tiles (no N tiling)");
-    }
+    if (cfg.dense_tiling_full_n) {
+        // New behavior: tile only M, each tile spans full N
+        if (verbose()) {
+            log->info("Dense tiling: " + std::to_string(M_tiles) + " M-tiles (full N per tile)");
+        }
 
-    for (int m_tile = 0; m_tile < M_tiles; ++m_tile) {
-        int m_start = m_tile * physical_pe_row_num;
-        int m_end = std::min(m_start + physical_pe_row_num, M);
+        for (int m_tile = 0; m_tile < M_tiles; ++m_tile) {
+            int m_start = m_tile * physical_pe_row_num;
+            int m_end = std::min(m_start + physical_pe_row_num, M);
 
-        tiles.push_back(std::make_tuple(m_start, m_end, 0, N));
+            tiles.push_back(std::make_tuple(m_start, m_end, 0, N));
+        }
+    } else {
+        // Old behavior: tile both M and N with pe_row_num x pe_col_num
+        int N_tiles = (N + physical_pe_col_num - 1) / physical_pe_col_num;
+
+        if (verbose()) {
+            log->info("Dense tiling: " + std::to_string(M_tiles) + "x" + std::to_string(N_tiles) + " = " +
+                     std::to_string(M_tiles * N_tiles) + " tiles");
+        }
+
+        for (int m_tile = 0; m_tile < M_tiles; ++m_tile) {
+            int m_start = m_tile * physical_pe_row_num;
+            int m_end = std::min(m_start + physical_pe_row_num, M);
+
+            for (int n_tile = 0; n_tile < N_tiles; ++n_tile) {
+                int n_start = n_tile * physical_pe_col_num;
+                int n_end = std::min(n_start + physical_pe_col_num, N);
+
+                tiles.push_back(std::make_tuple(m_start, m_end, n_start, n_end));
+            }
+        }
     }
     
     if (cfg.enable_spatial_folding) {

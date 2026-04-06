@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Ablation Studies: Run SegFold with different configs on synthetic matrices.
+"""Ablation Studies: Run SegFold with different configs.
 
-Four ablation groups:
+Ablation groups on synthetic matrices:
   - window-size:    B loader window size sweep (1, 4, 8, 16, 32, 64)
   - k-reordering:   B row reordering strategies
   - crossbar-width: B loader row limit sweep (1, 2, 4, 8, 16)
-  - mapping:        Dynamic routing / mapping strategies
 
-Each config is tested on synthetic square matrices at sizes 256, 512, 1024
-with densities 0.05 and 0.1, using 3 random seeds for averaging.
+Ablation groups on SuiteSparse matrices:
+  - mapping-paper:       Mapping ablation with memory hierarchy
+  - mapping-paper-nomem: Mapping ablation without memory hierarchy
 
 Usage:
     python3 scripts/run_ablation.py output/my_run
-    python3 scripts/run_ablation.py output/my_run --ablation window-size
+    python3 scripts/run_ablation.py output/my_run --ablation mapping-paper
     python3 scripts/run_ablation.py output/my_run --jobs 4
 """
 
@@ -48,20 +48,30 @@ ABLATIONS = {
         "brl-8":  "configs/ablation-brl-8.yaml",
         "brl-16": "configs/ablation-brl-16.yaml",
     },
-    "mapping": {
-        "segfold":     "configs/segfold.yaml",
-        "map-to-csr":  "configs/ablation-map-to-csr.yaml",
-        "map-to-zero": "configs/ablation-map-to-zero.yaml",
+    "mapping-paper": {
+        "segfold": "configs/ablation-map-paper-segfold.yaml",
+        "ideal":   "configs/ablation-map-paper-ideal.yaml",
+        "zero":    "configs/ablation-map-paper-zero.yaml",
     },
-    "mapping-dyntile": {
-        "segfold":     "configs/ablation-map-dyntile-segfold.yaml",
-        "ideal":       "configs/ablation-map-dyntile-ideal.yaml",
-        "map-to-csr":  "configs/ablation-map-dyntile-csr.yaml",
-        "map-to-zero": "configs/ablation-map-dyntile-zero.yaml",
+    "mapping-paper-nomem": {
+        "segfold": "configs/ablation-map-paper-nomem-segfold.yaml",
+        "ideal":   "configs/ablation-map-paper-nomem-ideal.yaml",
+        "zero":    "configs/ablation-map-paper-nomem-zero.yaml",
     },
 }
 
-SIZES = [256, 512]
+# Ablation groups that run on SuiteSparse matrices instead of synthetic
+SUITESPARSE_ABLATIONS = {"mapping-paper", "mapping-paper-nomem"}
+
+SUITESPARSE_MATRICES = [
+    "fv1", "flowmeter0", "delaunay_n13",
+    "ca-GrQc", "ca-CondMat", "poisson3Da",
+    "bcspwr06", "tols4000", "rdb5000",
+    "bcsstk03", "bcsstk18", "olm5000",
+    "lp_d2q06c", "lp_woodw", "pcb3000", "rosen10",
+]
+
+SIZES = [256, 512, 1024]
 DENSITIES = [(0.05, 0.05), (0.1, 0.1)]
 SEEDS = [0]
 
@@ -134,10 +144,75 @@ def run_one(binary: Path, config: Path, ablation_name: str, config_name: str,
     return result
 
 
-def run_ablation_group(binary, ablation_name, configs, out_dir, tmp_dir, timeout, jobs):
+def run_one_suitesparse(binary: Path, config: Path, ablation_name: str,
+                        config_name: str, matrix: str,
+                        matrix_dir: Path, out_dir: Path, tmp_dir: Path,
+                        timeout: int) -> dict:
+    """Run one SuiteSparse matrix simulation. Returns result dict."""
+    mtx_path = matrix_dir / matrix / f"{matrix}.mtx"
+    if not mtx_path.exists():
+        print(f"  [MISS] {config_name}/{matrix}: {mtx_path} not found")
+        return {"ablation": ablation_name, "config": config_name,
+                "matrix": matrix, "cycles": -1, "ok": False}
+
+    run_tmp = tmp_dir / f"{ablation_name}_{config_name}_{matrix}"
+    run_tmp.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        str(binary),
+        "--config", str(config),
+        "--mtx-file", str(mtx_path),
+        "--tmp-dir", str(run_tmp),
+    ]
+
+    result = {
+        "ablation": ablation_name, "config": config_name,
+        "matrix": matrix, "cycles": -1, "ok": False,
+    }
+
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout,
+            cwd=str(PROJECT_ROOT),
+        )
+        m = CYCLE_RE.search(proc.stdout)
+        cycles = int(m.group(1)) if m else -1
+        result["cycles"] = cycles
+
+        if proc.returncode != 0:
+            print(f"  [FAIL] {config_name}/{matrix}: rc={proc.returncode}")
+            return result
+
+        # Move stats to output dir
+        sub_dir = out_dir / config_name
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        latest = find_latest_stats(run_tmp)
+        if latest:
+            dest = sub_dir / f"sim_{matrix}_stats.json"
+            shutil.move(str(latest), str(dest))
+            cfg_json = latest.with_name(latest.name.replace("_stats.json", "_config.json"))
+            if cfg_json.exists():
+                shutil.move(str(cfg_json), str(sub_dir / f"sim_{matrix}_config.json"))
+
+        result["ok"] = True
+        print(f"  [OK]   {config_name}/{matrix}: {cycles} cycles")
+    except subprocess.TimeoutExpired:
+        print(f"  [TIMEOUT] {config_name}/{matrix}")
+    except Exception as e:
+        print(f"  [ERROR] {config_name}/{matrix}: {e}")
+
+    return result
+
+
+def run_ablation_group(binary, ablation_name, configs, out_dir, tmp_dir, timeout, jobs,
+                       matrix_dir=None):
     """Run all configs x matrices for one ablation group."""
     abl_out = out_dir / ablation_name
     abl_out.mkdir(parents=True, exist_ok=True)
+
+    if ablation_name in SUITESPARSE_ABLATIONS:
+        return run_suitesparse_ablation(binary, ablation_name, configs,
+                                        abl_out, tmp_dir, timeout, jobs, matrix_dir)
 
     tasks = []
     for config_name, config_path in configs.items():
@@ -165,10 +240,65 @@ def run_ablation_group(binary, ablation_name, configs, out_dir, tmp_dir, timeout
     return results
 
 
+def run_suitesparse_ablation(binary, ablation_name, configs, abl_out,
+                              tmp_dir, timeout, jobs, matrix_dir):
+    """Run all configs x SuiteSparse matrices for a mapping ablation."""
+    tasks = []
+    for config_name, config_path in configs.items():
+        config = PROJECT_ROOT / config_path
+        if not config.exists():
+            print(f"  [SKIP] Config not found: {config}")
+            continue
+        for matrix in SUITESPARSE_MATRICES:
+            tasks.append((binary, config, ablation_name, config_name,
+                          matrix, matrix_dir, abl_out, tmp_dir, timeout))
+
+    results = []
+    if jobs <= 1:
+        for i, args in enumerate(tasks):
+            print(f"[{i+1}/{len(tasks)}]", end="")
+            results.append(run_one_suitesparse(*args))
+    else:
+        with ThreadPoolExecutor(max_workers=jobs) as executor:
+            futures = {executor.submit(run_one_suitesparse, *args): args for args in tasks}
+            for future in as_completed(futures):
+                results.append(future.result())
+
+
+    return results
+
+
 def print_summary(ablation_name, results):
-    """Print summary table with average cycles per config x (size, density)."""
+    """Print summary table."""
+    if ablation_name in SUITESPARSE_ABLATIONS:
+        print_summary_suitesparse(results)
+    else:
+        print_summary_synthetic(results)
+
+
+def print_summary_suitesparse(results):
+    """Print summary table for SuiteSparse ablation."""
+    configs = sorted(set(r["config"] for r in results))
+    print(f"\n{'':20s}", end="")
+    for cfg in configs:
+        print(f" {cfg:>14s}", end="")
+    print()
+    print("-" * (20 + 15 * len(configs)))
+
+    for mat in SUITESPARSE_MATRICES:
+        print(f"{mat:20s}", end="")
+        for cfg in configs:
+            match = [r for r in results if r["config"] == cfg and r["matrix"] == mat]
+            if match and match[0]["cycles"] > 0:
+                print(f" {match[0]['cycles']:>14}", end="")
+            else:
+                print(f" {'FAIL':>14s}", end="")
+        print()
+
+
+def print_summary_synthetic(results):
+    """Print summary table for synthetic ablation."""
     from collections import defaultdict
-    # Group by (config, size, density) and average across seeds
     groups = defaultdict(list)
     for r in results:
         if r["cycles"] > 0:
@@ -202,6 +332,8 @@ def main():
     parser.add_argument("--ablation", type=str, default=None,
                         choices=list(ABLATIONS.keys()),
                         help="Run only this ablation group")
+    parser.add_argument("--matrix-dir", type=Path,
+                        default=PROJECT_ROOT / "benchmarks" / "data" / "suitesparse")
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=600)
     args = parser.parse_args()
@@ -219,29 +351,26 @@ def main():
 
     ablations = {args.ablation: ABLATIONS[args.ablation]} if args.ablation else ABLATIONS
 
-    total_configs = sum(len(c) for c in ablations.values())
-    total_runs = total_configs * len(SIZES) * len(DENSITIES) * len(SEEDS)
-
     print("=" * 50)
     print("Ablation Study Experiments")
     print(f"  ablations:  {list(ablations.keys())}")
-    print(f"  sizes:      {SIZES}")
-    print(f"  densities:  {DENSITIES}")
-    print(f"  seeds:      {SEEDS}")
-    print(f"  total runs: {total_runs}")
     print(f"  jobs:       {args.jobs}")
     print(f"  output:     {out_dir}")
     print("=" * 50)
 
     for ablation_name, configs in ablations.items():
-        n_runs = len(configs) * len(SIZES) * len(DENSITIES) * len(SEEDS)
+        if ablation_name in SUITESPARSE_ABLATIONS:
+            n_runs = len(configs) * len(SUITESPARSE_MATRICES)
+        else:
+            n_runs = len(configs) * len(SIZES) * len(DENSITIES) * len(SEEDS)
         print(f"\n{'='*50}")
         print(f"Ablation: {ablation_name} ({len(configs)} configs, {n_runs} runs)")
         print(f"{'='*50}")
 
         results = run_ablation_group(
             binary, ablation_name, configs,
-            out_dir, tmp_dir, args.timeout, args.jobs
+            out_dir, tmp_dir, args.timeout, args.jobs,
+            matrix_dir=args.matrix_dir,
         )
 
         ok = sum(1 for r in results if r["ok"])

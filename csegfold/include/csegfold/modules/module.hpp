@@ -97,6 +97,7 @@ struct Config {
     bool enable_decompose_a_row = false;
     int num_split = 1;
     bool enable_dynamic_tiling = true;
+    bool dense_tiling_full_n = false;  // When true, dense tiling uses full N per tile (no N tiling)
     double tile_c_multiplier = 1.0;  // Multiplier for tile C target_nnz
     bool enable_a_csc = true;
 

@@ -351,38 +351,74 @@ def collect_paper_results(output_dir: Path):
             written.append(out_path)
             print(f"Wrote {len(pivot)} rows -> {out_path}")
 
-    # Ablation studies (synthetic matrices)
+    # Ablation studies
     ablation_dir = output_dir / "ablation"
+    # Groups that run on SuiteSparse matrices (pivoted to {config}_cycles columns)
+    suitesparse_groups = {"mapping-paper", "mapping-paper-nomem"}
     if ablation_dir.is_dir():
         for group_dir in sorted(ablation_dir.iterdir()):
             if not group_dir.is_dir():
                 continue
             group_name = group_dir.name
-            rows = []
-            for config_dir in sorted(group_dir.iterdir()):
-                if not config_dir.is_dir():
-                    continue
-                config_name = config_dir.name
-                for fpath in sorted(config_dir.glob("sim_*_stats.json")):
-                    stats = load_stats(fpath)
-                    if not stats:
+
+            if group_name in suitesparse_groups:
+                # SuiteSparse ablation: pivot into matrix x {config}_cycles
+                rows_by_matrix = {}
+                for config_dir in sorted(group_dir.iterdir()):
+                    if not config_dir.is_dir():
                         continue
-                    row = extract_stats(stats)
-                    row["config"] = config_name
-                    # Parse synthetic run ID: sim_s256_dA5_dB5_r0_stats.json
-                    m = SYNTHETIC_RE.match(fpath.name)
-                    if m:
-                        row["matrix_size"] = int(m.group(1))
-                        row["density_A"] = int(m.group(2))
-                        row["density_B"] = int(m.group(3))
-                        row["run"] = int(m.group(4))
-                    rows.append(row)
-            if rows:
-                df = pd.DataFrame(rows)
-                out_path = output_dir / f"ablation_{group_name}_results.csv"
-                df.to_csv(out_path, index=False)
-                written.append(out_path)
-                print(f"Wrote {len(df)} rows -> {out_path}")
+                    config_name = config_dir.name
+                    for fpath in sorted(config_dir.glob("sim_*_stats.json")):
+                        stats = load_stats(fpath)
+                        if not stats:
+                            continue
+                        m_ss = SUITESPARSE_SIM_RE.match(fpath.name)
+                        if not m_ss:
+                            continue
+                        matrix = m_ss.group(1)
+                        if matrix not in rows_by_matrix:
+                            rows_by_matrix[matrix] = {"matrix": matrix}
+                        rows_by_matrix[matrix][f"{config_name}_cycles"] = stats.get("cycle")
+                        rows_by_matrix[matrix][f"{config_name}_util"] = stats.get("avg_util")
+                if rows_by_matrix:
+                    df = pd.DataFrame(list(rows_by_matrix.values()))
+                    # Compute speedup_vs_zero if zero_cycles exists
+                    if "zero_cycles" in df.columns and "segfold_cycles" in df.columns:
+                        df["speedup_vs_zero"] = (
+                            df["zero_cycles"] / df["segfold_cycles"]
+                        ).round(2)
+                    suffix = "_nomem" if "nomem" in group_name else ""
+                    out_path = output_dir / f"mapping_ablation_suitesparse{suffix}.csv"
+                    df.to_csv(out_path, index=False)
+                    written.append(out_path)
+                    print(f"Wrote {len(df)} rows -> {out_path}")
+            else:
+                # Synthetic ablation
+                rows = []
+                for config_dir in sorted(group_dir.iterdir()):
+                    if not config_dir.is_dir():
+                        continue
+                    config_name = config_dir.name
+                    for fpath in sorted(config_dir.glob("sim_*_stats.json")):
+                        stats = load_stats(fpath)
+                        if not stats:
+                            continue
+                        row = extract_stats(stats)
+                        row["config"] = config_name
+                        # Parse synthetic run ID: sim_s256_dA5_dB5_r0_stats.json
+                        m = SYNTHETIC_RE.match(fpath.name)
+                        if m:
+                            row["matrix_size"] = int(m.group(1))
+                            row["density_A"] = int(m.group(2))
+                            row["density_B"] = int(m.group(3))
+                            row["run"] = int(m.group(4))
+                        rows.append(row)
+                if rows:
+                    df = pd.DataFrame(rows)
+                    out_path = output_dir / f"ablation_{group_name}_results.csv"
+                    df.to_csv(out_path, index=False)
+                    written.append(out_path)
+                    print(f"Wrote {len(df)} rows -> {out_path}")
 
     return written
 

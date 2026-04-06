@@ -192,27 +192,7 @@ def main():
                      "K-Reordering Ablation",
                      plots_dir, "ablation_k_reordering")
 
-    # Mapping strategies
-    mp_dir = abl_root / "mapping"
-    if mp_dir.is_dir():
-        results = collect_ablation_stats(mp_dir)
-        if results:
-            plot_bar(results,
-                     ["segfold", "map-to-csr", "map-to-zero"],
-                     ["SegFold (Dynamic)", "CSR-Order", "Zero-Offset"],
-                     "Mapping Strategy Ablation (Dense Tiling)",
-                     plots_dir, "ablation_mapping")
-
-    # Mapping strategies with dynamic tiling
-    mpd_dir = abl_root / "mapping-dyntile"
-    if mpd_dir.is_dir():
-        results = collect_ablation_stats(mpd_dir)
-        if results:
-            plot_bar(results,
-                     ["segfold", "ideal", "map-to-csr", "map-to-zero"],
-                     ["SegFold (LUT)", "Ideal (No LUT)", "CSR-Order", "Zero-Offset"],
-                     "Mapping Strategy Ablation (Dynamic Tiling)",
-                     plots_dir, "ablation_mapping_dyntile")
+    # Mapping ablation on SuiteSparse is handled by plot_mapping_ablation.py
 
 
 if __name__ == "__main__":
