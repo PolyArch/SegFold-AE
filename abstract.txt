@@ -1,0 +1,7 @@
+This artifact provides the full implementation of SegFold, including a cycle-accurate simulator, benchmark datasets, hardware reports, and scripts to reproduce the experimental results presented in the paper.
+
+The artifact includes: (i) a C++-based simulator modeling the SegFold architecture and its dynamic dataflow mechanisms, (ii) benchmark workloads from SuiteSparse, (iii) synthesized hardware reports for RTL modules, and (iv) scripts for running end-to-end experiments, collecting results, and generating the figures in the paper.
+
+Using this artifact, users can reproduce the main results in the paper, including performance comparisons, ablation studies, and sensitivity analyses.
+
+The artifact is designed to run on a Linux-based system with standard software dependencies and does not require specialized hardware. A Docker environment is also provided for ease of use.

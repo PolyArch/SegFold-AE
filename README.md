@@ -50,10 +50,12 @@ docker compose run artifact ./scripts/run_all.sh
 
 | Resource | Minimum | Recommended |
 |----------|---------|-------------|
-| CPU      | 4 cores | 8+ cores    |
-| RAM      | 8 GB    | 16 GB       |
+| CPU      | 4 cores | 16+ cores   |
+| RAM      | 64 GB   | 256 GB      |
 | Disk     | 2 GB    | 5 GB        |
 | OS       | Ubuntu 22.04 | Ubuntu 22.04+ |
+
+> **RAM Note:** The breakdown experiment (`breakdown-base` config with dense tiling) requires up to ~50 GB per process. The mapping ablation requires up to ~40 GB per process. With `--jobs 1`, 64 GB is sufficient. Higher parallelism requires proportionally more RAM (e.g., `--jobs 4` with mapping needs ~160 GB).
 
 Python >= 3.8 is required. Install dependencies with:
 
@@ -298,18 +300,20 @@ SegFold-AE/
 
 ## Expected Runtime
 
-With default settings on a machine with 16 GB RAM and 8 cores:
+Measured on a 16-core machine with 256 GB RAM (`--jobs 16`, auto-detected):
 
-| Experiment | Runs | Est. Time (`--jobs 4`) |
-|------------|------|------------------------|
-| Overall performance (11 matrices) | 11 | 10-20 min |
-| Non-square performance (6 matrices) | 6 | 5-15 min |
-| Speedup breakdown (5 configs x 12 matrices) | 60 | 30-60 min |
-| Ablation mapping (3 configs x 16 matrices x 2) | 96 | 30-60 min |
-| Window size ablation (6 configs, synthetic) | 36 | 5-10 min |
-| Crossbar width ablation (5 configs, synthetic) | 30 | 5-10 min |
-| K-reordering ablation (3 configs, synthetic) | 18 | 5-10 min |
-| **Total** | **257** | **~2-3 hours** |
+| Experiment | Script | Runs | Time | Peak RAM / proc |
+|------------|--------|------|------|-----------------|
+| Overall performance | `run_figure_overall.sh` | 11 | ~26 min | 5 GB |
+| Non-square performance | `run_figure_nonsquare.sh` | 6 | ~11 min | 5 GB |
+| Speedup breakdown | `run_figure_breakdown.sh` | 60 | ~13 min | 50 GB |
+| Ablation mapping | `run_figure_mapping.sh` | 48 | ~18 min | 40 GB |
+| Window size ablation | `run_figure_window_size.sh` | 36 | ~14 min | 4 GB |
+| Crossbar width ablation | `run_figure_crossbar_width.sh` | 30 | ~15 min | 4 GB |
+| K-reordering ablation | `run_figure_k_reordering.sh` | 18 | ~14 min | 2 GB |
+| **Total** (`run_all.sh`) | | **209** | **~2 hours** | |
+
+With fewer cores or lower `--jobs`, runtimes scale roughly linearly. The breakdown and mapping experiments are the most memory-intensive.
 
 ## License
 
