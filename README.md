@@ -127,7 +127,7 @@ python3 scripts/run_overall.py output/my_run --jobs 4  # parallel
 
 **Output:** `output/my_run/overall/sim_{matrix}_stats.json`
 
-> **Note:** Only SegFold is simulated. Spada and Flexagon cycle counts are pre-computed and stored in `data/baselines/overall_baselines.csv` for plotting.
+> **Note:** Only SegFold is simulated. Spada and Flexagon cycle counts are pre-computed and stored in `data/baselines/overall_baselines.csv` for plotting. The Flexagon baseline corresponds to an earlier configuration used during submission; we are updating it for the camera-ready version. While absolute numbers may change, all results are internally consistent and reproducible.
 
 ### Step 4: Run Non-Square Performance Experiment
 
