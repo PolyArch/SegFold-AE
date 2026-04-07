@@ -48,6 +48,20 @@ if ! command -v python3 &>/dev/null; then
 fi
 echo "  python3 $(python3 --version 2>&1 | awk '{print $2}') ... OK"
 
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+    VENV_DIR="$PROJECT_ROOT/.venv"
+    if [ ! -d "$VENV_DIR" ]; then
+        echo "  Creating local virtualenv at $VENV_DIR ..."
+        python3 -m venv "$VENV_DIR"
+    fi
+    # Use a repo-local virtualenv so setup works on PEP 668 systems.
+    # shellcheck disable=SC1091
+    . "$VENV_DIR/bin/activate"
+    echo "  Using virtualenv: $VIRTUAL_ENV"
+else
+    echo "  Using active virtualenv: $VIRTUAL_ENV"
+fi
+
 # Auto-install from requirements.txt if present
 REQ_FILE="$PROJECT_ROOT/requirements.txt"
 if [ -f "$REQ_FILE" ]; then
@@ -64,7 +78,7 @@ for pkg in "${PYTHON_PACKAGES[@]}"; do
     fi
     if ! python3 -c "import $import_name" &>/dev/null; then
         echo "ERROR: Python package '$pkg' is not installed." >&2
-        echo "       Run: pip install -r requirements.txt" >&2
+        echo "       Run: . .venv/bin/activate && pip install -r requirements.txt" >&2
         exit 1
     fi
     echo "  $pkg ... OK"

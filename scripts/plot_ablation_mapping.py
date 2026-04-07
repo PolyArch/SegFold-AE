@@ -2,11 +2,15 @@
 """Plot ablation mapping on SuiteSparse matrices.
 
 Produces a bar chart showing speedup of each mapping strategy
-normalized to Zero-Offset (with memory hierarchy).
+normalized to Zero-Offset, with optional side-by-side panels for
+with-memory and no-memory runs.
 
 Usage:
     python3 scripts/plot_ablation_mapping.py
     python3 scripts/plot_ablation_mapping.py --output output/plots/ablation_mapping.pdf
+    python3 scripts/plot_ablation_mapping.py \
+        --mem-csv output/ablation_mapping_suitesparse_results.csv \
+        --nomem-csv output/ablation_mapping_suitesparse_nomem_results.csv
 """
 
 import argparse
@@ -119,28 +123,40 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mem-csv", default=None,
                         help="Path to ablation_mapping_suitesparse.csv")
+    parser.add_argument("--nomem-csv", default=None,
+                        help="Path to ablation_mapping_suitesparse_nomem_results.csv")
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
 
     mem_csv = args.mem_csv or os.path.join(
         PROJECT_ROOT, "output", "ablation_mapping_suitesparse_results.csv")
+    nomem_csv = args.nomem_csv
     out_path = args.output or os.path.join(
         PROJECT_ROOT, "output", "plots", "ablation_mapping.pdf")
 
     mem_matrices, mem_speedups = load_and_compute(mem_csv)
+    nomem_data = None
+    if nomem_csv and os.path.exists(nomem_csv):
+        nomem_data = load_and_compute(nomem_csv)
 
     y_max = 1.75
 
-    fig, ax = plt.subplots(figsize=(12, 4.5))
-
-    plot_panel(ax, mem_matrices, mem_speedups, "", y_max)
+    if nomem_data:
+        fig, axes = plt.subplots(1, 2, figsize=(16, 4.5), sharey=True)
+        plot_panel(axes[0], mem_matrices, mem_speedups, "With Memory Hierarchy", y_max)
+        nomem_matrices, nomem_speedups = nomem_data
+        plot_panel(axes[1], nomem_matrices, nomem_speedups, "Without Memory Hierarchy", y_max)
+        handles, labels = axes[0].get_legend_handles_labels()
+    else:
+        fig, ax = plt.subplots(figsize=(12, 4.5))
+        plot_panel(ax, mem_matrices, mem_speedups, "", y_max)
+        handles, labels = ax.get_legend_handles_labels()
 
     # Legend at top
-    handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", fontsize=11, ncol=len(STRATEGIES),
                framealpha=0.95, edgecolor="gray",
                handlelength=1.5, columnspacing=1.0,
-               bbox_to_anchor=(0.5, 1.05))
+                bbox_to_anchor=(0.5, 1.05))
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     plt.tight_layout()

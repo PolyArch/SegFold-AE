@@ -22,10 +22,16 @@ sudo apt-get install -y build-essential cmake g++ git python3 python3-pip curl
 ### Python packages
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 This installs: numpy, scipy, matplotlib, pandas, pyyaml.
+
+> **Note:** On Ubuntu/Debian systems with PEP 668 enabled, installing into the
+> system Python may fail with an `externally-managed-environment` error. Use a
+> virtual environment as shown above.
 
 > **Note:** Only the plotting and result collection scripts need these packages. The experiment runner scripts and the C++ simulator have no Python package dependencies.
 
@@ -39,7 +45,7 @@ This installs: numpy, scipy, matplotlib, pandas, pyyaml.
 
 This script:
 1. Checks all system dependencies (CMake, `g++`, Python)
-2. Installs Python packages from `requirements.txt`
+2. Creates or reuses a repo-local `.venv/` and installs Python packages there
 3. Builds the C++ simulator with Ramulator2 HBM2 DRAM backend
 4. Runs a smoke test to verify the build
 
@@ -102,7 +108,7 @@ Typical memory usage per simulation:
 python3 scripts/download_matrices.py
 ```
 
-Downloads 21 SuiteSparse matrices (~50 MB total) from https://sparse.tamu.edu/. Already-downloaded matrices are skipped.
+Downloads 20 SuiteSparse matrix directories (~50 MB total) from https://sparse.tamu.edu/. Already-downloaded matrices are skipped.
 
 ## Verification
 

@@ -2,15 +2,17 @@
 """Ablation Studies: Run SegFold with different configs.
 
 Ablation groups on synthetic matrices:
-  - window-size:    B loader window size sweep (1, 4, 8, 16, 32, 64)
-  - k-reordering:   B row reordering strategies
-  - crossbar-width: B loader row limit sweep (1, 2, 4, 8, 16)
+  - window-size:         B loader window size sweep (1, 4, 8, 16, 32, 64)
+  - k-reordering:        B row reordering strategies
+  - crossbar-width:      B loader row limit sweep (1, 2, 4, 8, 16)
 
 Ablation groups on SuiteSparse matrices:
   - mapping-paper:       Ablation mapping with memory hierarchy
+  - mapping-paper-nomem: Ablation mapping without memory hierarchy
 Usage:
     python3 scripts/run_ablation.py output/my_run
     python3 scripts/run_ablation.py output/my_run --ablation mapping-paper
+    python3 scripts/run_ablation.py output/my_run --ablation mapping-paper-nomem
     python3 scripts/run_ablation.py output/my_run --jobs 4
 """
 
@@ -51,10 +53,15 @@ ABLATIONS = {
         "ideal":   "configs/ablation-map-paper-ideal.yaml",
         "zero":    "configs/ablation-map-paper-zero.yaml",
     },
+    "mapping-paper-nomem": {
+        "segfold": "configs/ablation-map-paper-nomem-segfold.yaml",
+        "ideal":   "configs/ablation-map-paper-nomem-ideal.yaml",
+        "zero":    "configs/ablation-map-paper-nomem-zero.yaml",
+    },
 }
 
 # Ablation groups that run on SuiteSparse matrices instead of synthetic
-SUITESPARSE_ABLATIONS = {"mapping-paper"}
+SUITESPARSE_ABLATIONS = {"mapping-paper", "mapping-paper-nomem"}
 
 SUITESPARSE_MATRICES = [
     "fv1", "flowmeter0", "delaunay_n13",

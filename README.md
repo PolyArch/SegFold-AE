@@ -42,6 +42,8 @@ docker compose run artifact ./scripts/run_all.sh
 Python >= 3.8 is required. Install dependencies with:
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -57,6 +59,7 @@ See [INSTALL.md](INSTALL.md) for detailed dependency and RAM requirements.
 
 This script:
 - Checks system dependencies (CMake >= 3.15, `g++` with C++20, Python 3)
+- Creates or reuses a repo-local `.venv/` and installs Python packages there
 - Checks Python packages (numpy, scipy, matplotlib, pyyaml, pandas)
 - Builds the C++ simulator with Ramulator2 HBM2 DRAM backend
 - Runs a smoke test to verify the build
@@ -69,7 +72,7 @@ After building, the simulator binary is at `csegfold/build/csegfold`.
 python3 scripts/download_matrices.py
 ```
 
-Downloads 21 matrices from the [SuiteSparse Matrix Collection](https://sparse.tamu.edu/) into `benchmarks/data/suitesparse/`. Matrices already present are skipped. These cover all three paper experiments.
+Downloads 20 SuiteSparse matrix directories from the [SuiteSparse Matrix Collection](https://sparse.tamu.edu/) into `benchmarks/data/suitesparse/`. Matrices already present are skipped. These cover all three paper experiments.
 
 ### Step 3: Run Overall Performance Experiment
 
@@ -177,8 +180,8 @@ Parses all `*_stats.json` files and produces:
 - `overall_results.csv` — SegFold cycle counts for overall performance
 - `nonsquare_results.csv` — SegFold cycle counts for non-square matrices
 - `breakdown_results.csv` — Cycle counts per config per matrix (pivoted)
-- `ablation_mapping_suitesparse.csv` — Ablation mapping with memory hierarchy
-- `ablation_mapping_suitesparse_nomem.csv` — Ablation mapping without memory hierarchy
+- `ablation_mapping_suitesparse_results.csv` — Ablation mapping with memory hierarchy
+- `ablation_mapping_suitesparse_nomem_results.csv` — Ablation mapping without memory hierarchy
 
 ### Step 9: Generate Plots
 
@@ -187,9 +190,9 @@ python3 scripts/plot_overall.py output/my_run
 python3 scripts/plot_nonsquare.py output/my_run
 python3 scripts/plot_breakdown.py output/my_run
 python3 scripts/plot_ablation_mapping.py \
-    --mem-csv output/my_run/ablation_mapping_suitesparse.csv \
-    --nomem-csv output/my_run/ablation_mapping_suitesparse_nomem.csv \
-    --output output/my_run/plots/ablation_mapping_suitesparse.pdf
+    --mem-csv output/my_run/ablation_mapping_suitesparse_results.csv \
+    --nomem-csv output/my_run/ablation_mapping_suitesparse_nomem_results.csv \
+    --output output/my_run/plots/ablation_mapping.pdf
 python3 scripts/plot_ablation.py output/my_run
 ```
 
@@ -197,7 +200,7 @@ Generates PDF and PNG figures in `output/my_run/plots/`:
 - `overall_speedup.pdf` — Bar chart: SegFold vs Spada vs Flexagon (normalized to Spada)
 - `nonsquare_speedup.pdf` — Bar chart: SegFold vs Spada on rectangular matrices
 - `breakdown_speedup.pdf` — Stacked bars: incremental speedup per optimization
-- `ablation_mapping_suitesparse.pdf` — Mapping strategy comparison (with/without memory hierarchy)
+- `ablation_mapping.pdf` — Mapping strategy comparison (with/without memory hierarchy)
 - `ablation_window_size.pdf` — Window size sweep (normalized speedup)
 - `ablation_crossbar_width.pdf` — Crossbar width sweep (normalized speedup)
 - K-reordering summary printed to console (average relative speedup/slowdown)

@@ -1,6 +1,7 @@
 csegfold/build/
 csegfold/tmp/
 output/
+.venv/
 __pycache__/
 *.pyc
 .cache/

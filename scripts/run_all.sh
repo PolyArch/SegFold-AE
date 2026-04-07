@@ -150,12 +150,13 @@ echo "=========================================="
 echo " 1. Overall performance       (11 matrices)            ~15-30 min"
 echo " 2. Non-square performance    (6 matrices)            ~10-20 min"
 echo " 3. Speedup breakdown         (5 configs x 12 mat)    ~30-60 min"
-echo " 4. Ablation mapping          (3 configs x 16 mat x2) ~30-60 min"
-echo " 5. Window size ablation      (6 configs, synthetic)   ~5-10 min"
-echo " 6. Crossbar width ablation   (5 configs, synthetic)   ~5-10 min"
-echo " 7. K-reordering ablation     (3 configs, synthetic)   ~5-10 min"
-echo " 8. Collect results into CSV"
-echo " 9. Generate plots"
+echo " 4. Ablation mapping          (3 configs x 16 mat)     ~15-30 min"
+echo " 5. Ablation mapping (nomem)  (3 configs x 16 mat)     ~15-30 min"
+echo " 6. Window size ablation      (6 configs, synthetic)   ~5-10 min"
+echo " 7. Crossbar width ablation   (5 configs, synthetic)   ~5-10 min"
+echo " 8. K-reordering ablation     (3 configs, synthetic)   ~5-10 min"
+echo " 9. Collect results into CSV"
+echo "10. Generate plots"
 echo ""
 echo " Estimated total runtime: 2-3 hours (depends on hardware)"
 echo "=========================================="
@@ -193,44 +194,52 @@ python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
 echo "[$(ts)] Step 4: Ablation mapping complete."
 echo ""
 
-# ── Step 5: Window size ablation ────────────────────────────────────────
+# ── Step 5: Ablation mapping (no memory hierarchy) ──────────────────────
 
-echo "[$(ts)] Step 5: Running window size ablation..."
+echo "[$(ts)] Step 5: Running ablation mapping without memory hierarchy..."
+python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
+    --ablation mapping-paper-nomem --jobs "$MAX_JOBS"
+echo "[$(ts)] Step 5: Ablation mapping without memory hierarchy complete."
+echo ""
+
+# ── Step 6: Window size ablation ────────────────────────────────────────
+
+echo "[$(ts)] Step 6: Running window size ablation..."
 python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
     --ablation window-size --jobs "$MAX_JOBS"
-echo "[$(ts)] Step 5: Window size ablation complete."
+echo "[$(ts)] Step 6: Window size ablation complete."
 echo ""
 
-# ── Step 6: Crossbar width ablation ─────────────────────────────────────
+# ── Step 7: Crossbar width ablation ─────────────────────────────────────
 
-echo "[$(ts)] Step 6: Running crossbar width ablation..."
+echo "[$(ts)] Step 7: Running crossbar width ablation..."
 python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
     --ablation crossbar-width --jobs "$MAX_JOBS"
-echo "[$(ts)] Step 6: Crossbar width ablation complete."
+echo "[$(ts)] Step 7: Crossbar width ablation complete."
 echo ""
 
-# ── Step 7: K-reordering ablation ───────────────────────────────────────
+# ── Step 8: K-reordering ablation ───────────────────────────────────────
 
-echo "[$(ts)] Step 7: Running k-reordering ablation..."
+echo "[$(ts)] Step 8: Running k-reordering ablation..."
 python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
     --ablation k-reordering --jobs "$MAX_JOBS"
-echo "[$(ts)] Step 7: K-reordering ablation complete."
+echo "[$(ts)] Step 8: K-reordering ablation complete."
 echo ""
 
-# ── Step 8: Collect results ──────────────────────────────────────────────
+# ── Step 9: Collect results ──────────────────────────────────────────────
 
-echo "[$(ts)] Step 8: Collecting results..."
+echo "[$(ts)] Step 9: Collecting results..."
 if [ -f "$PROJECT_ROOT/scripts/collect_results.py" ]; then
     python3 "$PROJECT_ROOT/scripts/collect_results.py" "$OUT_DIR"
-    echo "[$(ts)] Step 8: Results collected."
+    echo "[$(ts)] Step 9: Results collected."
 else
     echo "[run_all] WARNING: scripts/collect_results.py not found, skipping."
 fi
 echo ""
 
-# ── Step 9: Generate plots ───────────────────────────────────────────────
+# ── Step 10: Generate plots ──────────────────────────────────────────────
 
-echo "[$(ts)] Step 9: Generating plots..."
+echo "[$(ts)] Step 10: Generating plots..."
 for plot_script in plot_overall.py plot_nonsquare.py plot_breakdown.py; do
     if [ -f "$PROJECT_ROOT/scripts/$plot_script" ]; then
         echo "  Running $plot_script ..."
@@ -244,6 +253,7 @@ if [ -f "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" ]; then
     echo "  Running plot_ablation_mapping.py ..."
     python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" \
         --mem-csv "$OUT_DIR/ablation_mapping_suitesparse_results.csv" \
+        --nomem-csv "$OUT_DIR/ablation_mapping_suitesparse_nomem_results.csv" \
         --output "$OUT_DIR/plots/ablation_mapping.pdf"
 fi
 # Synthetic ablation plots (window size, crossbar width, k-reordering)
@@ -251,7 +261,7 @@ if [ -f "$PROJECT_ROOT/scripts/plot_ablation.py" ]; then
     echo "  Running plot_ablation.py ..."
     python3 "$PROJECT_ROOT/scripts/plot_ablation.py" "$OUT_DIR"
 fi
-echo "[$(ts)] Step 9: Plots generated."
+echo "[$(ts)] Step 10: Plots generated."
 echo ""
 
 # ── Step 10: Summary and comparison ──────────────────────────────────────

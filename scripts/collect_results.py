@@ -7,6 +7,7 @@ Produces per-experiment CSV tables:
   - nonsquare_results.csv
   - breakdown_results.csv
   - ablation_mapping_suitesparse_results.csv
+  - ablation_mapping_suitesparse_nomem_results.csv
   - ablation_{group}_results.csv  (window-size, crossbar-width, k-reordering)
 
 Usage:
@@ -178,7 +179,7 @@ def collect_paper_results(output_dir: Path):
     # Ablation studies
     ablation_dir = output_dir / "ablation"
     # Groups that run on SuiteSparse matrices (pivoted to {config}_cycles columns)
-    suitesparse_groups = {"mapping-paper"}
+    suitesparse_groups = {"mapping-paper", "mapping-paper-nomem"}
     if ablation_dir.is_dir():
         for group_dir in sorted(ablation_dir.iterdir()):
             if not group_dir.is_dir():
@@ -211,7 +212,11 @@ def collect_paper_results(output_dir: Path):
                         df["speedup_vs_zero"] = (
                             df["zero_cycles"] / df["segfold_cycles"]
                         ).round(2)
-                    out_path = output_dir / "ablation_mapping_suitesparse_results.csv"
+                    if group_name == "mapping-paper":
+                        out_name = "ablation_mapping_suitesparse_results.csv"
+                    else:
+                        out_name = "ablation_mapping_suitesparse_nomem_results.csv"
+                    out_path = output_dir / out_name
                     df.to_csv(out_path, index=False)
                     written.append(out_path)
                     print(f"Wrote {len(df)} rows -> {out_path}")
