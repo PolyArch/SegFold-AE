@@ -287,7 +287,7 @@ if [ -d "$EXPECTED_DIR" ] && [ "$(ls -A "$EXPECTED_DIR" 2>/dev/null)" ]; then
     echo ""
 
     mismatch=0
-    for expected_file in "$EXPECTED_DIR"/*.csv; do
+    for expected_file in "$EXPECTED_DIR"/data/*.csv; do
         [ -f "$expected_file" ] || continue
         base=$(basename "$expected_file")
         actual_file="$OUT_DIR/$base"
