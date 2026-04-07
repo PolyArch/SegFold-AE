@@ -5,9 +5,5 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./output:/workspace/segfold/output
-    deploy:
-      resources:
-        limits:
-          memory: 64g
     stdin_open: true
     tty: true
