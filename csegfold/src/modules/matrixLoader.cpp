@@ -133,13 +133,15 @@ MatrixLoader::MatrixLoader(const Matrix<int8_t>& A, const Matrix<int8_t>& B) : B
                 row_data.push_back({col, val});
             }
         }
-        B_csr[i] = row_data;
+        if (!row_data.empty()) {
+            B_csr[i] = row_data;
+        }
     }
     if (verbose()) {
-        log->info("MatrixLoader: B_csr built from B_indexed: " + std::to_string(B_csr.size()) + 
+        log->info("MatrixLoader: B_csr built from B_indexed: " + std::to_string(B_csr.size()) +
                  " rows, nnz=" + std::to_string(B_indexed.nnz()));
     }
-    
+
     C_csr = std::unordered_map<int, std::vector<std::pair<int, int>>>();
     for (int i = 0; i < C_csr_result.rows_; ++i) {
         auto row_data = C_csr_result.get_row(i);
@@ -149,11 +151,6 @@ MatrixLoader::MatrixLoader(const Matrix<int8_t>& A, const Matrix<int8_t>& B) : B
     }
     if (verbose()) {
         log->info("MatrixLoader: C_csr built: " + std::to_string(C_csr.size()) + " rows");
-    }
-    
-    B_csr_load = std::unordered_map<int, std::vector<bool>>();
-    for (const auto& [row, data] : B_csr) {
-        B_csr_load[row] = std::vector<bool>(data.size(), false);
     }
     
     cfg.virtual_pe_row_num = prows();
@@ -237,7 +234,9 @@ MatrixLoader::MatrixLoader(const CSRMatrix& A_csr, const CSRMatrix& B_csr) : Bas
                 row_data.push_back({col, val});
             }
         }
-        this->B_csr[i] = row_data;
+        if (!row_data.empty()) {
+            this->B_csr[i] = row_data;
+        }
     }
 
     // Build C_csr map
@@ -247,11 +246,6 @@ MatrixLoader::MatrixLoader(const CSRMatrix& A_csr, const CSRMatrix& B_csr) : Bas
         if (!row_data.empty()) {
             C_csr[i] = row_data;
         }
-    }
-
-    B_csr_load = std::unordered_map<int, std::vector<bool>>();
-    for (const auto& [row, data] : this->B_csr) {
-        B_csr_load[row] = std::vector<bool>(data.size(), false);
     }
 
     cfg.virtual_pe_row_num = prows();

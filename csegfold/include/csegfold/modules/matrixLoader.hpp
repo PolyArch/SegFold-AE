@@ -34,7 +34,6 @@ public:
     int v_cols = 0;  // Maximum number of non-zeros per row across all tiles
     
     std::unordered_map<int, std::vector<std::pair<int, int>>> B_csr;
-    std::unordered_map<int, std::vector<bool>> B_csr_load;
     std::unordered_map<int, std::vector<std::pair<int, int>>> C_csr;
     
     int denseM;

@@ -96,36 +96,37 @@ void test_run_switches_move_c_eq_b() {
         {"physical_pe_col_num", "4"},
         {"enable_memory_hierarchy", "false"},
         {"enable_sw_pe_fifo", "true"},
-        {"decouple_sw_and_pe", "false"}
+        {"decouple_sw_and_pe", "false"},
+        {"enable_fifo_bypass", "false"}
     });
-    
+
     Matrix<int8_t> A(4, 4, 0);
     Matrix<int8_t> B(4, 4, 0);
-    
+
     A(0, 0) = 1;
     B(0, 0) = 1;
-    
+
     Simulator sim(A, B);
-    
+
     auto& switch_ = sim.switchModule.switches[0][0];
     switch_.status = SwitchStatus::MOVE;
     switch_.b.val = 1;
     switch_.b.row = 0;
     switch_.b.col = 0;
     switch_.c_col = 0;
-    
+
     size_t initial_fifo_size = sim.fifo[0][0].pe_update.size();
     bool fifo_not_full = sim.fifo_not_full(0, 0);
-    
+
     run_switches(&sim, &sim.switchModule, &sim.peModule);
-    
+
     auto& next_switch = sim.switchModule.next_switches[0][0];
     size_t final_fifo_size = sim.fifo[0][0].pe_update.size();
     bool switch_idle = (next_switch.status == SwitchStatus::IDLE);
     bool fifo_updated = (final_fifo_size > initial_fifo_size);
-    
+
     if (fifo_not_full) {
-        test_assert(switch_idle && fifo_updated, 
+        test_assert(switch_idle && fifo_updated,
                     "When c_eq_b and FIFO not full: switch becomes IDLE and FIFO receives update");
         test_assert(final_fifo_size == initial_fifo_size + 1,
                     "FIFO size increases by exactly 1");

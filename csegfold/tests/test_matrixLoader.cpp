@@ -169,16 +169,16 @@ void test_b_csr_conversion() {
     
     MatrixLoader loader(A, B);
     
-    test_assert(loader.B_csr.size() == 4, "B_csr has 4 rows");
+    test_assert(loader.B_csr.size() == 3, "B_csr has 3 non-empty rows");
     test_assert(loader.B_csr[0].size() == 2, "B row 0 has 2 elements");
     test_assert(loader.B_csr[0][0].first == 0, "B[0][0] col index");
     test_assert(loader.B_csr[0][0].second == 2, "B[0][0] value");
     test_assert(loader.B_csr[0][1].first == 2, "B[0][1] col index");
     test_assert(loader.B_csr[0][1].second == 3, "B[0][1] value");
-    
+
     test_assert(loader.B_csr[1].size() == 1, "B row 1 has 1 element");
     test_assert(loader.B_csr[2].size() == 1, "B row 2 has 1 element");
-    test_assert(loader.B_csr[3].size() == 0, "B row 3 is empty");
+    test_assert(loader.B_csr.find(3) == loader.B_csr.end(), "B row 3 is not stored");
 }
 
 void test_c_csr_conversion() {

@@ -19,8 +19,7 @@ public:
     
     MatrixLoader* matrix;
     std::unordered_map<int, std::vector<std::pair<int, int>>> B_csr;
-    std::unordered_map<int, std::vector<bool>> B_csr_load;
-    
+
     std::vector<int> active_indices;
     int lptr = 0;  // Index into B_rows_to_load for next row to process
     std::vector<bool> ready_to_evict;

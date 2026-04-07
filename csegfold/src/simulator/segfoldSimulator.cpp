@@ -64,7 +64,7 @@ void SegfoldSimulator::cleanup_step() {
     store_c_to_spad();
     
     record_utilization();
-    // record_b_elements_on_switch();
+    record_b_elements_on_switch();
     record_pes_waiting_spad();
     // record_pes_fifo_empty_stall();
     // record_pes_fifo_blocked_stall();

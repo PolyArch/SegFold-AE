@@ -8,7 +8,7 @@ namespace csegfold {
 
 MemoryController::MemoryController(MatrixLoader* matrix) : BaseModule(), matrix(matrix), enable_memory_hierarchy(false), enable_filter(false) {
     B_csr = matrix->B_csr;
-    B_csr_load = matrix->B_csr_load;
+    matrix->B_csr.clear();
     filter_intersections();
     active_indices.clear();
     lptr = 0;

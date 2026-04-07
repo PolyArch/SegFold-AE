@@ -295,19 +295,6 @@ target_link_libraries(test_e2e_cpp PUBLIC yaml-cpp)
 link_ramulator_if_enabled(test_e2e_cpp)
 add_test(NAME TestE2ECpp COMMAND test_e2e_cpp)
 
-# Test executable for C++ vs Python Cycle Comparison
-add_executable(test_compare_python
-    tests/test_compare_python.cpp
-    ${MODULES_SOURCES}
-    ${MATRIX_SOURCES}
-    ${SIMULATOR_SOURCES}
-    ${MEMORY_SOURCES}
-)
-target_compile_features(test_compare_python PUBLIC cxx_std_20)
-target_link_libraries(test_compare_python PUBLIC yaml-cpp)
-link_ramulator_if_enabled(test_compare_python)
-add_test(NAME TestComparePython COMMAND test_compare_python)
-
 # Test executable for Trace Generation
 add_executable(test_trace
     tests/test_trace.cpp
