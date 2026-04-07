@@ -36,6 +36,7 @@ RUN cd csegfold \
 # Ensure the output directory exists
 RUN mkdir -p /workspace/segfold/output
 
-ENTRYPOINT ["/bin/sh"]
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-CMD ["-c", "echo 'SegFold Artifact Evaluation Container'; echo ''; echo 'Usage:'; echo '  Run all experiments:'; echo '    docker run segfold-ae -c \"./scripts/run_all.sh\"'; echo ''; echo '  Run specific experiment:'; echo '    docker run segfold-ae -c \"python3 scripts/run_overall.py output/run\"'; echo '    docker run segfold-ae -c \"python3 scripts/run_nonsquare.py output/run\"'; echo '    docker run segfold-ae -c \"python3 scripts/run_breakdown.py output/run\"'"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

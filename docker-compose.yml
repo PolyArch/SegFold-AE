@@ -4,6 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./output:/workspace/segfold/output
+      - ./output:/workspace/segfold/output:z
     stdin_open: true
     tty: true
