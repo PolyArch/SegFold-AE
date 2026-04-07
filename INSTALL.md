@@ -79,21 +79,24 @@ docker run --memory=16g -v $(pwd)/output:/workspace/segfold/output segfold-artif
 
 The simulator uses CSR (Compressed Sparse Row) format via `--mtx-file`, so memory usage scales with the number of nonzeros (nnz), not the full matrix dimensions. This makes even large matrices like ca-CondMat (23,133 x 23,133) feasible on modest hardware.
 
-Typical memory usage per simulation:
+Peak memory usage varies significantly across experiments:
 
-| Matrix | Dimensions | NNZ | Peak RAM |
-|--------|-----------|-----|----------|
-| bcspwr06 | 1,454 x 1,454 | 5,300 | ~250 MB |
-| rdb5000 | 5,000 x 5,000 | 29,600 | ~3.5 GB |
-| fv1 | 9,604 x 9,604 | 85,264 | ~13 GB |
-| ca-CondMat | 23,133 x 23,133 | 186,936 | ~20 GB |
+| Experiment | Config | Peak RAM / proc |
+|------------|--------|-----------------|
+| Overall performance | `segfold.yaml` | ~5 GB |
+| Non-square performance | `segfold.yaml` | ~5 GB |
+| Speedup breakdown | `breakdown-base.yaml` | ~50 GB |
+| Ablation mapping | `ablation-map-*.yaml` | ~40 GB |
+| Synthetic ablations | various | ~4 GB |
+
+The `run_all.sh` script auto-detects available RAM and sets parallelism accordingly — using higher concurrency for lightweight experiments and lower concurrency for memory-intensive ones (breakdown and mapping).
 
 **Recommendation**: Set `--jobs` based on your available RAM:
 
 ```bash
-./scripts/run_all.sh --jobs 2    # For 16 GB machines
-./scripts/run_all.sh --jobs 4    # For 32 GB machines
-./scripts/run_all.sh --jobs 8    # For 64+ GB machines
+./scripts/run_all.sh --jobs 1    # For 64 GB machines
+./scripts/run_all.sh --jobs 4    # For 256 GB machines
+./scripts/run_all.sh --jobs 8    # For 512+ GB machines
 ```
 
 ## Downloading Benchmark Matrices

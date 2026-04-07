@@ -33,15 +33,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Auto-detect MAX_JOBS from RAM ────────────────────────────────────────
+# Breakdown-base config uses up to ~50 GB per process
 if [ -z "$MAX_JOBS" ]; then
     if [ -f /proc/meminfo ]; then
         mem_total_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)
         available_gb=$(( mem_total_kb / 1024 / 1024 ))
-        MAX_JOBS=$(( available_gb / 4 ))
+        MAX_JOBS=$(( available_gb / 50 ))
         [ "$MAX_JOBS" -lt 1 ] && MAX_JOBS=1
         [ "$MAX_JOBS" -gt 16 ] && MAX_JOBS=16
     else
-        MAX_JOBS=4
+        MAX_JOBS=1
     fi
 fi
 

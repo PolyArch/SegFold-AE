@@ -54,27 +54,34 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Auto-detect MAX_JOBS from RAM ────────────────────────────────────────
+# Different experiments have different per-process RAM requirements:
+#   - Overall/nonsquare/synthetic ablations: ~5 GB/proc
+#   - Speedup breakdown (breakdown-base):   ~50 GB/proc
+#   - Ablation mapping:                     ~40 GB/proc
 
 if [ -z "$MAX_JOBS" ]; then
     if [ -f /proc/meminfo ]; then
         mem_total_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)
-        available_gb=$(( mem_total_kb / 1024 / 1024 ))
-        MAX_JOBS=$(( available_gb / 4 ))
+        AVAILABLE_GB=$(( mem_total_kb / 1024 / 1024 ))
+        MAX_JOBS=$(( AVAILABLE_GB / 5 ))
+        MAX_JOBS_HEAVY=$(( AVAILABLE_GB / 50 ))
         # Clamp to [1, 16]
-        if [ "$MAX_JOBS" -lt 1 ]; then
-            MAX_JOBS=1
-        fi
-        if [ "$MAX_JOBS" -gt 16 ]; then
-            MAX_JOBS=16
-        fi
-        echo "[run_all] Auto-detected ${available_gb} GB RAM -> MAX_JOBS=${MAX_JOBS}"
+        [ "$MAX_JOBS" -lt 1 ] && MAX_JOBS=1
+        [ "$MAX_JOBS" -gt 16 ] && MAX_JOBS=16
+        [ "$MAX_JOBS_HEAVY" -lt 1 ] && MAX_JOBS_HEAVY=1
+        [ "$MAX_JOBS_HEAVY" -gt 16 ] && MAX_JOBS_HEAVY=16
+        echo "[run_all] Auto-detected ${AVAILABLE_GB} GB RAM -> MAX_JOBS=${MAX_JOBS}, MAX_JOBS_HEAVY=${MAX_JOBS_HEAVY}"
     else
         MAX_JOBS=4
-        echo "[run_all] Cannot read /proc/meminfo; defaulting to MAX_JOBS=${MAX_JOBS}"
+        MAX_JOBS_HEAVY=1
+        echo "[run_all] Cannot read /proc/meminfo; defaulting to MAX_JOBS=${MAX_JOBS}, MAX_JOBS_HEAVY=${MAX_JOBS_HEAVY}"
     fi
+else
+    MAX_JOBS_HEAVY="$MAX_JOBS"
 fi
 
 export MAX_JOBS
+export MAX_JOBS_HEAVY
 
 # ── Helper: run with concurrency limit ───────────────────────────────────
 
@@ -114,7 +121,7 @@ echo " Start time  : $(ts)"
 echo " Project root: $PROJECT_ROOT"
 echo " Config      : $CONFIG_PATH"
 echo " Output dir  : $OUT_DIR"
-echo " Max jobs    : $MAX_JOBS"
+echo " Max jobs    : $MAX_JOBS (heavy: $MAX_JOBS_HEAVY)"
 echo " Skip build  : $SKIP_BUILD"
 echo "=========================================="
 echo ""
@@ -147,17 +154,17 @@ echo ""
 echo "=========================================="
 echo " Experiment Plan"
 echo "=========================================="
-echo " 1. Overall performance       (11 matrices)            ~15-30 min"
-echo " 2. Non-square performance    (6 matrices)            ~10-20 min"
-echo " 3. Speedup breakdown         (5 configs x 12 mat)    ~30-60 min"
-echo " 4. Ablation mapping          (3 configs x 16 mat x2) ~30-60 min"
-echo " 5. Window size ablation      (6 configs, synthetic)   ~5-10 min"
-echo " 6. Crossbar width ablation   (5 configs, synthetic)   ~5-10 min"
-echo " 7. K-reordering ablation     (3 configs, synthetic)   ~5-10 min"
+echo " 1. Overall performance       (11 matrices)            ~26 min"
+echo " 2. Non-square performance    (6 matrices)             ~11 min"
+echo " 3. Speedup breakdown         (5 configs x 12 mat)     ~13 min"
+echo " 4. Ablation mapping          (3 configs x 16 mat)     ~18 min"
+echo " 5. Window size ablation      (6 configs, synthetic)   ~14 min"
+echo " 6. Crossbar width ablation   (5 configs, synthetic)   ~15 min"
+echo " 7. K-reordering ablation     (3 configs, synthetic)   ~14 min"
 echo " 8. Collect results into CSV"
 echo " 9. Generate plots"
 echo ""
-echo " Estimated total runtime: 2-3 hours (depends on hardware)"
+echo " Estimated total runtime: ~2 hours (16 cores, 256 GB RAM)"
 echo "=========================================="
 echo ""
 
@@ -181,7 +188,7 @@ echo ""
 
 echo "[$(ts)] Step 3: Running speedup breakdown experiments..."
 python3 "$PROJECT_ROOT/scripts/run_breakdown.py" "$OUT_DIR" \
-    --jobs "$MAX_JOBS"
+    --jobs "$MAX_JOBS_HEAVY"
 echo "[$(ts)] Step 3: Speedup breakdown complete."
 echo ""
 
@@ -189,7 +196,7 @@ echo ""
 
 echo "[$(ts)] Step 4: Running ablation mapping..."
 python3 "$PROJECT_ROOT/scripts/run_ablation.py" "$OUT_DIR" \
-    --ablation mapping-paper --jobs "$MAX_JOBS"
+    --ablation mapping-paper --jobs "$MAX_JOBS_HEAVY"
 echo "[$(ts)] Step 4: Ablation mapping complete."
 echo ""
 
