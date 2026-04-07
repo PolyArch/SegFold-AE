@@ -5,7 +5,7 @@ set -e
 # run_figure_overall.sh — Reproduce overall performance figure
 #
 # End-to-end: build → download matrices → simulate → collect → plot
-# Produces: overall_speedup.pdf (SegFold vs Spada vs Flexagon, 11 matrices)
+# Produces: fig8_overall_speedup.pdf (SegFold vs Spada vs Flexagon, 11 matrices)
 #
 # Usage:
 #   ./scripts/run_figure_overall.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -94,5 +94,5 @@ python3 "$PROJECT_ROOT/scripts/plot_overall.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/overall_speedup.pdf"
+echo " Done! Output: $OUT_DIR/plots/fig8_overall_speedup.pdf"
 echo "=========================================="

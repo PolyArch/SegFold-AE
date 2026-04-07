@@ -5,7 +5,7 @@ set -e
 # run_figure_nonsquare.sh — Reproduce non-square performance figure
 #
 # End-to-end: build → download matrices → simulate → collect → plot
-# Produces: nonsquare_speedup.pdf (SegFold vs Spada, 6 rectangular matrices)
+# Produces: fig9_nonsquare_speedup.pdf (SegFold vs Spada, 6 rectangular matrices)
 #
 # Usage:
 #   ./scripts/run_figure_nonsquare.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -94,5 +94,5 @@ python3 "$PROJECT_ROOT/scripts/plot_nonsquare.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/nonsquare_speedup.pdf"
+echo " Done! Output: $OUT_DIR/plots/fig9_nonsquare_speedup.pdf"
 echo "=========================================="

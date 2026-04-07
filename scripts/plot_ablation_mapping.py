@@ -116,11 +116,11 @@ def plot_panel(ax, matrices, speedups, title, y_max):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("output_dir", help="Directory with ablation_mapping_suitesparse_results.csv")
+    parser.add_argument("output_dir", help="Directory with fig10_ablation_mapping_results.csv")
     args = parser.parse_args()
 
     out_dir = os.path.abspath(args.output_dir)
-    csv_path = os.path.join(out_dir, "ablation_mapping_suitesparse_results.csv")
+    csv_path = os.path.join(out_dir, "fig10_ablation_mapping_results.csv")
 
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found. Run collect_results.py first.")
@@ -145,7 +145,7 @@ def main():
     os.makedirs(plots_dir, exist_ok=True)
     plt.tight_layout()
     for ext in [".pdf", ".png"]:
-        path = os.path.join(plots_dir, f"ablation_mapping{ext}")
+        path = os.path.join(plots_dir, f"fig10_ablation_mapping{ext}")
         fig.savefig(path, dpi=200, bbox_inches="tight")
         print(f"Saved: {path}")
 

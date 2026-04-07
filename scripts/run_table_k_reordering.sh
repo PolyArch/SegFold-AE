@@ -5,7 +5,7 @@ set -e
 # run_table_k_reordering.sh — Reproduce k-reordering ablation results
 #
 # End-to-end: build → simulate (synthetic) → collect → generate summary
-# Produces: ablation_k_reordering.txt (3 configs, synthetic matrices)
+# Produces: tab4_k_reordering.txt (3 configs, synthetic matrices)
 #
 # Usage:
 #   ./scripts/run_table_k_reordering.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -86,5 +86,5 @@ python3 "$PROJECT_ROOT/scripts/plot_ablation.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/ablation_k_reordering.txt"
+echo " Done! Output: $OUT_DIR/plots/tab4_k_reordering.txt"
 echo "=========================================="

@@ -5,7 +5,7 @@ set -e
 # run_figure_breakdown.sh — Reproduce speedup breakdown figure
 #
 # End-to-end: build → download matrices → simulate → collect → plot
-# Produces: breakdown_speedup.pdf (incremental ablation, 5 configs x 12 matrices)
+# Produces: fig11_breakdown_speedup.pdf (incremental ablation, 5 configs x 12 matrices)
 #
 # Usage:
 #   ./scripts/run_figure_breakdown.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -91,5 +91,5 @@ python3 "$PROJECT_ROOT/scripts/plot_breakdown.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/breakdown_speedup.pdf"
+echo " Done! Output: $OUT_DIR/plots/fig11_breakdown_speedup.pdf"
 echo "=========================================="

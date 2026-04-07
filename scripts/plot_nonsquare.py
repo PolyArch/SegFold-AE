@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Plot non-square performance: SegFold vs Spada, normalized to Spada.
 
-Reads SegFold cycle counts from nonsquare_results.csv and merges with
+Reads SegFold cycle counts from fig9_nonsquare_results.csv and merges with
 pre-computed baseline data from data/baselines/nonsquare_baselines.csv.
 Speedup normalized to Spada.
 
@@ -48,11 +48,11 @@ HATCHES = {
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("output_dir", help="Directory with nonsquare_results.csv")
+    parser.add_argument("output_dir", help="Directory with fig9_nonsquare_results.csv")
     args = parser.parse_args()
 
     out_dir = os.path.abspath(args.output_dir)
-    segfold_path = os.path.join(out_dir, "nonsquare_results.csv")
+    segfold_path = os.path.join(out_dir, "fig9_nonsquare_results.csv")
     baseline_path = os.path.join(PROJECT_ROOT, "data", "baselines", "nonsquare_baselines.csv")
 
     if not os.path.exists(segfold_path):
@@ -161,7 +161,7 @@ def main():
 
     plt.tight_layout()
     for ext in [".pdf", ".png"]:
-        path = os.path.join(plots_dir, f"nonsquare_speedup{ext}")
+        path = os.path.join(plots_dir, f"fig9_nonsquare_speedup{ext}")
         fig.savefig(path, dpi=200, bbox_inches="tight")
         print(f"Saved: {path}")
     plt.close()

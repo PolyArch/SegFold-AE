@@ -5,7 +5,7 @@ set -e
 # run_figure_window_size.sh — Reproduce window size ablation figure
 #
 # End-to-end: build → simulate (synthetic) → collect → plot
-# Produces: ablation_window_size.pdf (6 window configs, synthetic matrices)
+# Produces: fig12b_ablation_window_size.pdf (6 window configs, synthetic matrices)
 #
 # Usage:
 #   ./scripts/run_figure_window_size.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -86,5 +86,5 @@ python3 "$PROJECT_ROOT/scripts/plot_ablation.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/ablation_window_size.pdf"
+echo " Done! Output: $OUT_DIR/plots/fig12b_ablation_window_size.pdf"
 echo "=========================================="

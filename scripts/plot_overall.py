@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Plot overall performance: SegFold vs Spada vs Flexagon on SuiteSparse matrices.
 
-Reads SegFold cycle counts from overall_results.csv and merges with
+Reads SegFold cycle counts from fig8_overall_results.csv and merges with
 pre-computed baseline data from data/baselines/overall_baselines.csv.
 Speedup is normalized to Spada (spada_cycles / X_cycles).
 
@@ -52,11 +52,11 @@ HATCHES = {
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("output_dir", help="Directory with overall_results.csv")
+    parser.add_argument("output_dir", help="Directory with fig8_overall_results.csv")
     args = parser.parse_args()
 
     out_dir = os.path.abspath(args.output_dir)
-    segfold_path = os.path.join(out_dir, "overall_results.csv")
+    segfold_path = os.path.join(out_dir, "fig8_overall_results.csv")
     baseline_path = os.path.join(PROJECT_ROOT, "data", "baselines", "overall_baselines.csv")
 
     if not os.path.exists(segfold_path):
@@ -148,7 +148,7 @@ def main():
     plots_dir = os.path.join(out_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)
     for ext in [".pdf", ".png"]:
-        path = os.path.join(plots_dir, f"overall_speedup{ext}")
+        path = os.path.join(plots_dir, f"fig8_overall_speedup{ext}")
         fig.savefig(path, dpi=200, bbox_inches="tight")
         print(f"Saved: {path}")
     plt.close()

@@ -5,7 +5,7 @@ set -e
 # run_figure_crossbar_width.sh — Reproduce crossbar width ablation figure
 #
 # End-to-end: build → simulate (synthetic) → collect → plot
-# Produces: ablation_crossbar_width.pdf (5 BRL configs, synthetic matrices)
+# Produces: fig12a_ablation_crossbar_width.pdf (5 BRL configs, synthetic matrices)
 #
 # Usage:
 #   ./scripts/run_figure_crossbar_width.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -86,5 +86,5 @@ python3 "$PROJECT_ROOT/scripts/plot_ablation.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/ablation_crossbar_width.pdf"
+echo " Done! Output: $OUT_DIR/plots/fig12a_ablation_crossbar_width.pdf"
 echo "=========================================="

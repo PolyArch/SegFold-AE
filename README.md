@@ -30,13 +30,13 @@ python3 scripts/download_matrices.py
 The e2e task takes around 2 hours with 16 parallelized cores. To do shorter test, each figure/table has a standalone script that handles everything end-to-end (build, download, simulate, collect, plot):
 
 ```bash
-./scripts/run_figure_overall.sh         # Overall performance (SegFold vs Spada vs Flexagon)
-./scripts/run_figure_nonsquare.sh       # Non-square matrix performance
-./scripts/run_figure_breakdown.sh       # Speedup breakdown (incremental ablation)
-./scripts/run_figure_mapping.sh         # Ablation: mapping strategy comparison
-./scripts/run_figure_window_size.sh     # Ablation: window size sweep
-./scripts/run_figure_crossbar_width.sh  # Ablation: crossbar width sweep
-./scripts/run_table_k_reordering.sh     # Ablation: k-reordering strategies
+./scripts/run_figure_overall.sh         # Figure 8:  Overall performance (SegFold vs Spada vs Flexagon)
+./scripts/run_figure_nonsquare.sh       # Figure 9:  Non-square matrix performance
+./scripts/run_figure_mapping.sh         # Figure 10: Ablation mapping strategy comparison
+./scripts/run_figure_breakdown.sh       # Figure 11: Speedup breakdown (incremental ablation)
+./scripts/run_figure_crossbar_width.sh  # Figure 12(a): Crossbar width sweep
+./scripts/run_figure_window_size.sh     # Figure 12(b): Window size sweep
+./scripts/run_table_k_reordering.sh     # Table IV:  K-reordering ablation
 ```
 
 All scripts support `--jobs N`, `--skip-build`, and `--output-dir DIR`. See the [Step-by-Step Guide](#step-by-step-guide) for detailed command-line options and experiment descriptions.
@@ -70,7 +70,7 @@ Pre-generated reference results are provided in `expected_results/` for comparis
 Since the simulator is deterministic, the generated CSV files should match the expected results exactly. You can verify this with:
 
 ```bash
-diff output/ae_<timestamp>/overall_results.csv expected_results/data/overall_results.csv
+diff output/ae_<timestamp>/fig8_overall_results.csv expected_results/data/fig8_overall_results.csv
 ```
 
 ## Hardware Requirements
@@ -209,13 +209,13 @@ python3 scripts/collect_results.py output/my_run
 ```
 
 Parses all `*_stats.json` files and produces:
-- `overall_results.csv` — SegFold cycle counts for overall performance
-- `nonsquare_results.csv` — SegFold cycle counts for non-square matrices
-- `breakdown_results.csv` — Cycle counts per config per matrix (pivoted)
-- `ablation_mapping_suitesparse_results.csv` — Ablation mapping strategy comparison
-- `ablation_window-size_results.csv` — Window size sweep results
-- `ablation_crossbar-width_results.csv` — Crossbar width sweep results
-- `ablation_k-reordering_results.csv` — K-reordering strategy results
+- `fig8_overall_results.csv` — Figure 8: SegFold cycle counts for overall performance
+- `fig9_nonsquare_results.csv` — Figure 9: SegFold cycle counts for non-square matrices
+- `fig10_ablation_mapping_results.csv` — Figure 10: Ablation mapping strategy comparison
+- `fig11_breakdown_results.csv` — Figure 11: Cycle counts per config per matrix (pivoted)
+- `fig12a_ablation_crossbar_width_results.csv` — Figure 12(a): Crossbar width sweep results
+- `fig12b_ablation_window_size_results.csv` — Figure 12(b): Window size sweep results
+- `tab4_k_reordering_results.csv` — Table IV: K-reordering strategy results
 
 ### Step 9: Generate Plots
 
@@ -228,25 +228,25 @@ python3 scripts/plot_ablation.py output/my_run
 ```
 
 Generates PDF and PNG figures in `output/my_run/plots/`:
-- `overall_speedup.pdf` — Bar chart: SegFold vs Spada vs Flexagon (normalized to Spada)
-- `nonsquare_speedup.pdf` — Bar chart: SegFold vs Spada on rectangular matrices
-- `breakdown_speedup.pdf` — Stacked bars: incremental speedup per optimization
-- `ablation_mapping.pdf` — Mapping strategy comparison
-- `ablation_window_size.pdf` — Window size sweep (normalized speedup)
-- `ablation_crossbar_width.pdf` — Crossbar width sweep (normalized speedup)
-- `ablation_k_reordering.txt` — K-reordering summary (average relative speedup/slowdown)
+- `fig8_overall_speedup.pdf` — Figure 8: SegFold vs Spada vs Flexagon (normalized to Spada)
+- `fig9_nonsquare_speedup.pdf` — Figure 9: SegFold vs Spada on rectangular matrices
+- `fig10_ablation_mapping.pdf` — Figure 10: Mapping strategy comparison
+- `fig11_breakdown_speedup.pdf` — Figure 11: Incremental speedup per optimization
+- `fig12a_ablation_crossbar_width.pdf` — Figure 12(a): Crossbar width sweep (normalized cycles)
+- `fig12b_ablation_window_size.pdf` — Figure 12(b): Window size sweep (normalized cycles)
+- `tab4_k_reordering.txt` — Table IV: K-reordering summary
 
 ## Experiment-to-Paper Mapping
 
-| Script | Paper Figure | Description |
-|--------|-------------|-------------|
-| `run_overall.py` | Overall performance | SegFold vs Spada vs Flexagon on 11 matrices |
-| `run_nonsquare.py` | Non-square performance | SegFold vs Spada on 6 rectangular matrices |
-| `run_breakdown.py` | Speedup breakdown | Incremental ablation (5 configs x 12 matrices) |
-| `run_ablation.py --ablation mapping-paper` | Ablation mapping | Mapping strategy comparison (3 x 16) |
-| `run_ablation.py --ablation window-size` | Window size sweep | B loader window size (6 configs, synthetic) |
-| `run_ablation.py --ablation crossbar-width` | Crossbar width sweep | B loader row limit (5 configs, synthetic) |
-| `run_ablation.py --ablation k-reordering` | K-reordering | K-reorder strategies (3 configs, synthetic) |
+| Script | Paper Reference | Output Files | Description |
+|--------|----------------|--------------|-------------|
+| `run_overall.py` | Figure 8 | `fig8_overall_results.csv`, `fig8_overall_speedup.pdf` | SegFold vs Spada vs Flexagon on 11 matrices |
+| `run_nonsquare.py` | Figure 9 | `fig9_nonsquare_results.csv`, `fig9_nonsquare_speedup.pdf` | SegFold vs Spada on 6 rectangular matrices |
+| `run_ablation.py --ablation mapping-paper` | Figure 10 | `fig10_ablation_mapping_results.csv`, `fig10_ablation_mapping.pdf` | Mapping strategy comparison (3 x 16) |
+| `run_breakdown.py` | Figure 11 | `fig11_breakdown_results.csv`, `fig11_breakdown_speedup.pdf` | Incremental ablation (5 configs x 12 matrices) |
+| `run_ablation.py --ablation crossbar-width` | Figure 12(a) | `fig12a_ablation_crossbar_width.pdf` | B loader row limit (5 configs, synthetic) |
+| `run_ablation.py --ablation window-size` | Figure 12(b) | `fig12b_ablation_window_size.pdf` | B loader window size (6 configs, synthetic) |
+| `run_ablation.py --ablation k-reordering` | Table IV | `tab4_k_reordering.txt` | K-reorder strategies (3 configs, synthetic) |
 
 ## Configuration
 

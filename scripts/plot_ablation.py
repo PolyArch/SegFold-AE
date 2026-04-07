@@ -29,11 +29,14 @@ plt.rcParams.update({
     "font.family": "serif",
     "font.serif": ["Times New Roman", "DejaVu Serif", "Times"],
     "mathtext.fontset": "dejavuserif",
-    "font.size": 13,
+    "font.size": 18,
+    "axes.labelsize": 20,
+    "xtick.labelsize": 18,
+    "ytick.labelsize": 18,
 })
 
-SIZE_MARKERS = {256: "o", 512: "s", 1024: "D"}
 SIZE_COLORS = {256: "#1f77b4", 512: "#ff7f0e", 1024: "#2ca02c"}
+DENSITY_STYLES = {0.05: "-", 0.1: "--"}
 
 
 def collect_ablation_stats(abl_dir: Path) -> dict:
@@ -62,17 +65,20 @@ def parse_run_id(rid: str):
 
 def plot_sweep(results, configs_ordered, param_values, param_labels,
                ylabel, xlabel, plots_dir, filename, baseline_cfg=None):
-    """Plot a parameter sweep as normalized speedup line plot."""
+    """Plot a parameter sweep: single plot with 6 lines (3 sizes x 2 densities).
+
+    Y-axis shows normalized cycles (cycle / baseline_cycle), so higher = slower.
+    Color encodes matrix size, line style encodes density (solid=sparse, dashed=dense).
+    """
+    from matplotlib.ticker import ScalarFormatter
+
     sizes = sorted(set(parse_run_id(r)[0] for r in results))
     densities = sorted(set(parse_run_id(r)[1] for r in results))
 
-    fig, axes = plt.subplots(1, len(densities),
-                             figsize=(6 * len(densities), 4),
-                             squeeze=False)
+    fig, ax = plt.subplots(figsize=(5.5, 4.2))
 
-    for di, da in enumerate(densities):
-        ax = axes[0][di]
-        for size in sizes:
+    for size in sizes:
+        for da in densities:
             # Collect cycles for each config
             cycles = []
             x_vals = []
@@ -87,36 +93,45 @@ def plot_sweep(results, configs_ordered, param_values, param_labels,
             if not cycles:
                 continue
 
-            # Normalize to baseline if provided
+            # Normalize cycles to baseline (cycle / baseline_cycle)
             if baseline_cfg is not None:
                 base_idx = configs_ordered.index(baseline_cfg)
                 if base_idx < len(cycles) and cycles[base_idx] > 0:
                     base_val = cycles[base_idx]
-                    y_vals = [base_val / c if c > 0 else 0 for c in cycles]
+                    y_vals = [c / base_val if c > 0 else 0 for c in cycles]
                 else:
                     y_vals = cycles
             else:
                 y_vals = cycles
 
             ax.plot(x_vals, y_vals,
-                    marker=SIZE_MARKERS.get(size, "o"),
                     color=SIZE_COLORS.get(size, None),
-                    label=f"N={size}", linewidth=1.5, markersize=6)
+                    linestyle=DENSITY_STYLES.get(da, "-"),
+                    marker="o", markersize=7,
+                    label=f"N={size}, d={da}",
+                    linewidth=1.8)
 
-        ax.set_xlabel(xlabel, fontsize=12)
-        if di == 0:
-            ax.set_ylabel(ylabel, fontsize=12)
-        ax.set_title(f"density = {da}", fontsize=12)
-        ax.legend(fontsize=10)
-        ax.grid(alpha=0.3)
-        ax.set_xticks(param_values)
-        ax.set_xticklabels(param_labels, fontsize=10)
-        if baseline_cfg is not None:
-            ax.axhline(y=1, color="gray", linestyle="--", linewidth=0.5)
-        if all(isinstance(v, (int, float)) for v in param_values):
-            ax.set_xscale('log', base=2)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel("Normalized Cycles", fontsize=20)
 
-    fig.tight_layout()
+    # Reference line at 1.0
+    if baseline_cfg is not None:
+        ax.axhline(y=1.0, color="gray", linestyle="--", linewidth=0.8, zorder=0)
+
+    # Log2 x-axis for evenly spaced power-of-2 ticks
+    if all(isinstance(v, (int, float)) for v in param_values):
+        ax.set_xscale("log", base=2)
+    ax.set_xticks(param_values)
+    ax.xaxis.set_major_formatter(ScalarFormatter())
+    ax.xaxis.set_minor_formatter(plt.NullFormatter())
+
+    ax.yaxis.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
+    ax.set_axisbelow(True)
+
+    ax.legend(loc="upper right", framealpha=0.9, edgecolor="none",
+              ncol=1, fontsize=15, handlelength=2.2)
+
+    fig.tight_layout(pad=0.4)
     for ext in [".pdf", ".png"]:
         path = plots_dir / f"{filename}{ext}"
         fig.savefig(path, dpi=200, bbox_inches="tight")
@@ -180,7 +195,7 @@ def compute_k_reordering_summary(results, baseline_cfg, configs, labels,
     print("\n" + text + "\n")
 
     if plots_dir is not None:
-        out_path = Path(plots_dir) / "ablation_k_reordering.txt"
+        out_path = Path(plots_dir) / "tab4_k_reordering.txt"
         out_path.write_text(text + "\n")
         print(f"Saved: {out_path}")
 
@@ -210,7 +225,7 @@ def main():
             labels = ["1", "4", "8", "16", "32", "64"]
             plot_sweep(results, configs, values, labels,
                        "Speedup (norm. to W=32)", "Window Size",
-                       plots_dir, "ablation_window_size",
+                       plots_dir, "fig12b_ablation_window_size",
                        baseline_cfg="window-32")
 
     # Crossbar width sweep
@@ -223,7 +238,7 @@ def main():
             labels = ["1", "2", "4", "8", "16"]
             plot_sweep(results, configs, values, labels,
                        "Speedup (norm. to BRL=4)", "B Loader Row Limit",
-                       plots_dir, "ablation_crossbar_width",
+                       plots_dir, "fig12a_ablation_crossbar_width",
                        baseline_cfg="brl-4")
 
     # K-reordering — compute average relative speedup/slowdown

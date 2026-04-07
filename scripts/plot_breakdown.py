@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Plot speedup breakdown: stacked bars showing incremental feature contribution.
 
-Reads breakdown_results.csv with columns:
+Reads fig11_breakdown_results.csv with columns:
     matrix, base_cycles, +tiling_cycles, +folding_cycles, +dynmap_cycles, full_cycles
 
 Each matrix gets one stacked bar. Reference (1.0x) is base_cycles when > 0
@@ -33,11 +33,11 @@ Y_MAX = 3.0
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("output_dir", help="Directory with breakdown_results.csv")
+    parser.add_argument("output_dir", help="Directory with fig11_breakdown_results.csv")
     args = parser.parse_args()
 
     out_dir = os.path.abspath(args.output_dir)
-    csv_path = os.path.join(out_dir, "breakdown_results.csv")
+    csv_path = os.path.join(out_dir, "fig11_breakdown_results.csv")
 
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found. Run collect_results.py first.")
@@ -181,7 +181,7 @@ def main():
     plots_dir = os.path.join(out_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)
     for ext in [".pdf", ".png"]:
-        path = os.path.join(plots_dir, f"breakdown_speedup{ext}")
+        path = os.path.join(plots_dir, f"fig11_breakdown_speedup{ext}")
         fig.savefig(path, dpi=200, bbox_inches="tight")
         print(f"Saved: {path}")
     plt.close()

@@ -3,11 +3,11 @@
 Collect experiment stats from JSON files into CSV tables.
 
 Produces per-experiment CSV tables:
-  - overall_results.csv
-  - nonsquare_results.csv
-  - breakdown_results.csv
-  - ablation_mapping_suitesparse_results.csv
-  - ablation_{group}_results.csv  (window-size, crossbar-width, k-reordering)
+  - fig8_overall_results.csv           (Figure 8: overall performance)
+  - fig9_nonsquare_results.csv         (Figure 9: non-square performance)
+  - fig10_ablation_mapping_results.csv (Figure 10: mapping ablation)
+  - fig11_breakdown_results.csv        (Figure 11: speedup breakdown)
+  - ablation_{group}_results.csv       (window-size, crossbar-width, k-reordering)
 
 Usage:
     python3 scripts/collect_results.py OUTPUT_DIR
@@ -129,7 +129,7 @@ def collect_paper_results(output_dir: Path):
     if overall_dir.is_dir():
         df = collect_experiment_dir(overall_dir)
         if not df.empty:
-            out_path = output_dir / "overall_results.csv"
+            out_path = output_dir / "fig8_overall_results.csv"
             df.to_csv(out_path, index=False)
             written.append(out_path)
             print(f"Wrote {len(df)} rows -> {out_path}")
@@ -139,7 +139,7 @@ def collect_paper_results(output_dir: Path):
     if nonsquare_dir.is_dir():
         df = collect_experiment_dir(nonsquare_dir)
         if not df.empty:
-            out_path = output_dir / "nonsquare_results.csv"
+            out_path = output_dir / "fig9_nonsquare_results.csv"
             df.to_csv(out_path, index=False)
             written.append(out_path)
             print(f"Wrote {len(df)} rows -> {out_path}")
@@ -170,7 +170,7 @@ def collect_paper_results(output_dir: Path):
             }
             pivot.rename(columns=col_map, inplace=True)
 
-            out_path = output_dir / "breakdown_results.csv"
+            out_path = output_dir / "fig11_breakdown_results.csv"
             pivot.to_csv(out_path, index=False)
             written.append(out_path)
             print(f"Wrote {len(pivot)} rows -> {out_path}")
@@ -211,7 +211,7 @@ def collect_paper_results(output_dir: Path):
                         df["speedup_vs_zero"] = (
                             df["zero_cycles"] / df["segfold_cycles"]
                         ).round(2)
-                    out_path = output_dir / "ablation_mapping_suitesparse_results.csv"
+                    out_path = output_dir / "fig10_ablation_mapping_results.csv"
                     df.to_csv(out_path, index=False)
                     written.append(out_path)
                     print(f"Wrote {len(df)} rows -> {out_path}")
@@ -238,7 +238,14 @@ def collect_paper_results(output_dir: Path):
                         rows.append(row)
                 if rows:
                     df = pd.DataFrame(rows)
-                    out_path = output_dir / f"ablation_{group_name}_results.csv"
+                    # Map group names to figure-numbered filenames
+                    group_csv_names = {
+                        "crossbar-width": "fig12a_ablation_crossbar_width_results.csv",
+                        "window-size": "fig12b_ablation_window_size_results.csv",
+                        "k-reordering": "tab4_k_reordering_results.csv",
+                    }
+                    csv_name = group_csv_names.get(group_name, f"ablation_{group_name}_results.csv")
+                    out_path = output_dir / csv_name
                     df.to_csv(out_path, index=False)
                     written.append(out_path)
                     print(f"Wrote {len(df)} rows -> {out_path}")

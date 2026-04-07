@@ -5,7 +5,7 @@ set -e
 # run_figure_mapping.sh — Reproduce ablation mapping figure
 #
 # End-to-end: build → download matrices → simulate → collect → plot
-# Produces: ablation_mapping.pdf (3 mapping strategies x 16 matrices)
+# Produces: fig10_ablation_mapping.pdf (3 mapping strategies x 16 matrices)
 #
 # Usage:
 #   ./scripts/run_figure_mapping.sh [--jobs N] [--skip-build] [--output-dir DIR]
@@ -91,5 +91,5 @@ python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
-echo " Done! Output: $OUT_DIR/plots/ablation_mapping.pdf"
+echo " Done! Output: $OUT_DIR/plots/fig10_ablation_mapping.pdf"
 echo "=========================================="
