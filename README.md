@@ -4,6 +4,16 @@ SegFold is a cycle-accurate simulator for a sparse-sparse matrix multiplication 
 
 ## Quick Start
 
+Run everything in one command (includes build + download + experiments):
+
+```bash
+./scripts/run_all.sh
+```
+
+Results are written to `output/ae_<timestamp>/`.
+
+The following steps could be used to build the simulator, download the benchmarks, and run the simulation separately.
+
 ```bash
 # 1. Build the simulator
 ./scripts/setup.sh
@@ -15,17 +25,9 @@ python3 scripts/download_matrices.py
 ./scripts/run_all.sh --skip-build
 ```
 
-Results are written to `output/ae_<timestamp>/`.
+### Reproduce a Single Figure/Table
 
-Or run everything in one command (includes build + download + experiments):
-
-```bash
-./scripts/run_all.sh
-```
-
-### Reproduce a Single Figure
-
-Each figure has a standalone script that handles everything end-to-end (build, download, simulate, collect, plot):
+The e2e task takes around 2 hours with 16 parallelized cores. To do shorter test, each figure/table has a standalone script that handles everything end-to-end (build, download, simulate, collect, plot):
 
 ```bash
 ./scripts/run_figure_overall.sh         # Overall performance (SegFold vs Spada vs Flexagon)
@@ -34,16 +36,41 @@ Each figure has a standalone script that handles everything end-to-end (build, d
 ./scripts/run_figure_mapping.sh         # Ablation: mapping strategy comparison
 ./scripts/run_figure_window_size.sh     # Ablation: window size sweep
 ./scripts/run_figure_crossbar_width.sh  # Ablation: crossbar width sweep
-./scripts/run_figure_k_reordering.sh    # Ablation: k-reordering strategies
+./scripts/run_table_k_reordering.sh     # Ablation: k-reordering strategies
 ```
 
-All scripts support `--jobs N`, `--skip-build`, and `--output-dir DIR`.
+All scripts support `--jobs N`, `--skip-build`, and `--output-dir DIR`. See the [Step-by-Step Guide](#step-by-step-guide) for detailed command-line options and experiment descriptions.
 
 ### Docker
 
+A Docker environment is provided for ease of setup. The container comes with all dependencies pre-installed and the simulator pre-built.
+
 ```bash
+# Build the Docker image
 docker compose build
-docker compose run artifact ./scripts/run_all.sh
+
+# Run all experiments (results are mounted to ./output on the host)
+docker compose run artifact ./scripts/run_all.sh 
+
+# Or reproduce a single figure
+docker compose run artifact ./scripts/run_figure_overall.sh 
+```
+
+## Expected Results
+
+After running the experiments, results are written to `output/ae_<timestamp>/`:
+- **`plots/`** — Generated figures (PDF and PNG) for each experiment
+- **`*.csv`** — Collected cycle counts and statistics for each experiment
+- **`*_stats.json`** — Raw simulation output per matrix per configuration
+
+Pre-generated reference results are provided in `expected_results/` for comparison:
+- **`expected_results/plots/`** — Reference figures matching the paper
+- **`expected_results/data/`** — Reference CSV files with expected cycle counts
+
+Since the simulator is deterministic, the generated CSV files should match the expected results exactly. You can verify this with:
+
+```bash
+diff output/ae_<timestamp>/overall_results.csv expected_results/data/overall_results.csv
 ```
 
 ## Hardware Requirements
@@ -57,13 +84,7 @@ docker compose run artifact ./scripts/run_all.sh
 
 > **RAM Note:** The breakdown experiment (`breakdown-base` config with dense tiling) requires up to ~50 GB per process. The mapping ablation requires up to ~40 GB per process. With `--jobs 1`, 64 GB is sufficient. Higher parallelism requires proportionally more RAM (e.g., `--jobs 4` with mapping needs ~160 GB).
 
-Python >= 3.8 is required. Install dependencies with:
-
-```bash
-pip install -r requirements.txt
-```
-
-See [INSTALL.md](INSTALL.md) for detailed dependency and RAM requirements.
+Python >= 3.8 is required. All dependencies (cmake, g++, Python packages) are checked and installed automatically by `setup.sh`. See [INSTALL.md](INSTALL.md) for detailed dependency and RAM requirements.
 
 ## Step-by-Step Guide
 
@@ -87,7 +108,7 @@ After building, the simulator binary is at `csegfold/build/csegfold`.
 python3 scripts/download_matrices.py
 ```
 
-Downloads 21 matrices from the [SuiteSparse Matrix Collection](https://sparse.tamu.edu/) into `benchmarks/data/suitesparse/`. Matrices already present are skipped. These cover all three paper experiments.
+Downloads 20 matrices from the [SuiteSparse Matrix Collection](https://sparse.tamu.edu/) into `benchmarks/data/suitesparse/`. Matrices already present are skipped. These cover all the paper experiments.
 
 ### Step 3: Run Overall Performance Experiment
 
@@ -101,7 +122,7 @@ python3 scripts/run_overall.py output/my_run --jobs 4  # parallel
 **Matrices:** fv1, flowmeter0, delaunay_n13, ca-GrQc, ca-CondMat, poisson3Da, bcspwr06, tols4000, rdb5000, psse1, gemat1
 
 **Configs:**
-- Most matrices use `configs/segfold.yaml` (16x16 PE array, 1 MB L1 cache, HBM2 DRAM)
+- Most matrices use `configs/segfold.yaml` (16x16 PE array, 1.5 MB L1 cache, HBM2 DRAM)
 - Irregular matrices (ca-GrQc, ca-CondMat, poisson3Da) use `configs/segfold-ir.yaml` (row decomposition, larger tiles, demand scheduling)
 
 **Output:** `output/my_run/overall/sim_{matrix}_stats.json`
@@ -146,7 +167,7 @@ Five configurations are run per matrix, progressively enabling features:
 
 ### Step 6: Run Ablation Mapping Experiment
 
-Evaluates the impact of different PE-to-memory mapping strategies on 16 SuiteSparse matrices.
+Evaluates the impact of different memory-to-PE mapping strategies on 16 SuiteSparse matrices.
 
 ```bash
 python3 scripts/run_ablation.py output/my_run --ablation mapping-paper --jobs 4
@@ -156,8 +177,8 @@ Three mapping strategies are compared:
 
 | Config | Strategy |
 |--------|----------|
-| `zero` | Zero-Offset (Memory-Primary) |
-| `ideal` | Direct-Routing (Network-Primary) |
+| `zero` | Zero-Offset |
+| `ideal` | Ideal-Network |
 | `segfold` | SegFold (Ours) |
 
 **Matrices:** fv1, flowmeter0, delaunay_n13, ca-GrQc, ca-CondMat, poisson3Da, bcspwr06, tols4000, rdb5000, bcsstk03, bcsstk18, olm5000, lp_d2q06c, lp_woodw, pcb3000, rosen10
@@ -191,7 +212,10 @@ Parses all `*_stats.json` files and produces:
 - `overall_results.csv` — SegFold cycle counts for overall performance
 - `nonsquare_results.csv` — SegFold cycle counts for non-square matrices
 - `breakdown_results.csv` — Cycle counts per config per matrix (pivoted)
-- `ablation_mapping_suitesparse.csv` — Ablation mapping with memory hierarchy
+- `ablation_mapping_suitesparse_results.csv` — Ablation mapping strategy comparison
+- `ablation_window-size_results.csv` — Window size sweep results
+- `ablation_crossbar-width_results.csv` — Crossbar width sweep results
+- `ablation_k-reordering_results.csv` — K-reordering strategy results
 
 ### Step 9: Generate Plots
 
@@ -199,9 +223,7 @@ Parses all `*_stats.json` files and produces:
 python3 scripts/plot_overall.py output/my_run
 python3 scripts/plot_nonsquare.py output/my_run
 python3 scripts/plot_breakdown.py output/my_run
-python3 scripts/plot_ablation_mapping.py \
-    --mem-csv output/my_run/ablation_mapping_suitesparse.csv \
-    --output output/my_run/plots/ablation_mapping.pdf
+python3 scripts/plot_ablation_mapping.py output/my_run
 python3 scripts/plot_ablation.py output/my_run
 ```
 
@@ -209,10 +231,10 @@ Generates PDF and PNG figures in `output/my_run/plots/`:
 - `overall_speedup.pdf` — Bar chart: SegFold vs Spada vs Flexagon (normalized to Spada)
 - `nonsquare_speedup.pdf` — Bar chart: SegFold vs Spada on rectangular matrices
 - `breakdown_speedup.pdf` — Stacked bars: incremental speedup per optimization
-- `ablation_mapping_suitesparse.pdf` — Mapping strategy comparison (with/without memory hierarchy)
+- `ablation_mapping.pdf` — Mapping strategy comparison
 - `ablation_window_size.pdf` — Window size sweep (normalized speedup)
 - `ablation_crossbar_width.pdf` — Crossbar width sweep (normalized speedup)
-- K-reordering summary printed to console (average relative speedup/slowdown)
+- `ablation_k_reordering.txt` — K-reordering summary (average relative speedup/slowdown)
 
 ## Experiment-to-Paper Mapping
 
@@ -221,7 +243,7 @@ Generates PDF and PNG figures in `output/my_run/plots/`:
 | `run_overall.py` | Overall performance | SegFold vs Spada vs Flexagon on 11 matrices |
 | `run_nonsquare.py` | Non-square performance | SegFold vs Spada on 6 rectangular matrices |
 | `run_breakdown.py` | Speedup breakdown | Incremental ablation (5 configs x 12 matrices) |
-| `run_ablation.py --ablation mapping-paper` | Ablation mapping | Mapping strategy comparison (3 x 16, with mem) |
+| `run_ablation.py --ablation mapping-paper` | Ablation mapping | Mapping strategy comparison (3 x 16) |
 | `run_ablation.py --ablation window-size` | Window size sweep | B loader window size (6 configs, synthetic) |
 | `run_ablation.py --ablation crossbar-width` | Crossbar width sweep | B loader row limit (5 configs, synthetic) |
 | `run_ablation.py --ablation k-reordering` | K-reordering | K-reorder strategies (3 configs, synthetic) |
@@ -283,16 +305,27 @@ SegFold-AE/
 ├── scripts/
 │   ├── setup.sh                     # Build & verify
 │   ├── run_all.sh                   # One-command full reproduction
+│   ├── run_figure_overall.sh        # Standalone: overall performance figure
+│   ├── run_figure_nonsquare.sh      # Standalone: non-square performance figure
+│   ├── run_figure_breakdown.sh      # Standalone: speedup breakdown figure
+│   ├── run_figure_mapping.sh        # Standalone: ablation mapping figure
+│   ├── run_figure_window_size.sh    # Standalone: window size ablation figure
+│   ├── run_figure_crossbar_width.sh # Standalone: crossbar width ablation figure
+│   ├── run_table_k_reordering.sh    # Standalone: k-reordering ablation table
 │   ├── download_matrices.py         # Download SuiteSparse matrices
 │   ├── run_overall.py               # Overall performance (11 matrices)
 │   ├── run_nonsquare.py             # Non-square performance (6 matrices)
 │   ├── run_breakdown.py             # Speedup breakdown (5 x 12)
-│   ├── run_ablation.py              # Ablation mapping (3 x 16 x 2)
+│   ├── run_ablation.py              # Ablation experiments
 │   ├── collect_results.py           # JSON stats -> CSV
 │   ├── plot_overall.py              # Overall speedup figure
 │   ├── plot_nonsquare.py            # Non-square speedup figure
 │   ├── plot_breakdown.py            # Breakdown stacked bar figure
-│   └── plot_ablation_mapping.py     # Ablation mapping figure
+│   ├── plot_ablation_mapping.py     # Ablation mapping figure
+│   └── plot_ablation.py             # Synthetic ablation figures
+├── expected_results/                # Reference outputs
+│   ├── plots/                       # Expected figures (PDF + PNG)
+│   └── data/                        # Expected CSV results
 └── hardware/                        # RTL & synthesis reports
     ├── rtl/
     └── reports/
@@ -310,10 +343,20 @@ Measured on a 16-core machine with 256 GB RAM (`--jobs 16`, auto-detected):
 | Ablation mapping | `run_figure_mapping.sh` | 48 | ~18 min | 40 GB |
 | Window size ablation | `run_figure_window_size.sh` | 36 | ~14 min | 4 GB |
 | Crossbar width ablation | `run_figure_crossbar_width.sh` | 30 | ~15 min | 4 GB |
-| K-reordering ablation | `run_figure_k_reordering.sh` | 18 | ~14 min | 2 GB |
+| K-reordering ablation | `run_table_k_reordering.sh` | 18 | ~14 min | 2 GB |
 | **Total** (`run_all.sh`) | | **209** | **~2 hours** | |
 
 With fewer cores or lower `--jobs`, runtimes scale roughly linearly. The breakdown and mapping experiments are the most memory-intensive.
+
+## Hardware Synthesis Reports
+
+The `hardware/` directory contains RTL source files and synthesis reports for the SegFold architecture modules:
+
+- **`hardware/rtl/`** — SystemVerilog source files for all SegFold modules (PE, switch, scratchpad, LUT, memory controller, etc.)
+- **`hardware/reports/`** — Synthesis reports (area, power, timing, QoR) for each module, generated with Synopsys Design Compiler using the ASAP 7nm standard cell library
+- **`hardware/reports/cacti/`** — CACTI SRAM modeling results for scratchpad and FIFO buffers (22nm/32nm)
+
+These reports correspond to the area and power numbers presented in the paper. No simulation is required to view them.
 
 ## License
 

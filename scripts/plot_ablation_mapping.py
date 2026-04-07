@@ -2,11 +2,10 @@
 """Plot ablation mapping on SuiteSparse matrices.
 
 Produces a bar chart showing speedup of each mapping strategy
-normalized to Zero-Offset (with memory hierarchy).
+normalized to Zero-Offset.
 
 Usage:
-    python3 scripts/plot_ablation_mapping.py
-    python3 scripts/plot_ablation_mapping.py --output output/plots/ablation_mapping.pdf
+    python3 scripts/plot_ablation_mapping.py OUTPUT_DIR
 """
 
 import argparse
@@ -117,23 +116,23 @@ def plot_panel(ax, matrices, speedups, title, y_max):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mem-csv", default=None,
-                        help="Path to ablation_mapping_suitesparse.csv")
-    parser.add_argument("--output", default=None)
+    parser.add_argument("output_dir", help="Directory with ablation_mapping_suitesparse_results.csv")
     args = parser.parse_args()
 
-    mem_csv = args.mem_csv or os.path.join(
-        PROJECT_ROOT, "output", "ablation_mapping_suitesparse_results.csv")
-    out_path = args.output or os.path.join(
-        PROJECT_ROOT, "output", "plots", "ablation_mapping.pdf")
+    out_dir = os.path.abspath(args.output_dir)
+    csv_path = os.path.join(out_dir, "ablation_mapping_suitesparse_results.csv")
 
-    mem_matrices, mem_speedups = load_and_compute(mem_csv)
+    if not os.path.exists(csv_path):
+        print(f"Error: {csv_path} not found. Run collect_results.py first.")
+        sys.exit(1)
+
+    matrices, speedups = load_and_compute(csv_path)
 
     y_max = 1.75
 
     fig, ax = plt.subplots(figsize=(12, 4.5))
 
-    plot_panel(ax, mem_matrices, mem_speedups, "", y_max)
+    plot_panel(ax, matrices, speedups, "", y_max)
 
     # Legend at top
     handles, labels = ax.get_legend_handles_labels()
@@ -142,15 +141,13 @@ def main():
                handlelength=1.5, columnspacing=1.0,
                bbox_to_anchor=(0.5, 1.05))
 
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    plots_dir = os.path.join(out_dir, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
     plt.tight_layout()
-    fig.savefig(out_path, dpi=200, bbox_inches="tight")
-    print(f"Saved: {out_path}")
-
-    if out_path.endswith(".pdf"):
-        png_path = out_path.replace(".pdf", ".png")
-        fig.savefig(png_path, dpi=200, bbox_inches="tight")
-        print(f"Saved: {png_path}")
+    for ext in [".pdf", ".png"]:
+        path = os.path.join(plots_dir, f"ablation_mapping{ext}")
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+        print(f"Saved: {path}")
 
     plt.close()
 

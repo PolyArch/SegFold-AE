@@ -8,6 +8,6 @@ services:
     deploy:
       resources:
         limits:
-          memory: 16g
+          memory: 64g
     stdin_open: true
     tty: true

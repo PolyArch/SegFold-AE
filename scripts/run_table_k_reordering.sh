@@ -2,13 +2,13 @@
 set -e
 
 # ==========================================================================
-# run_figure_k_reordering.sh — Reproduce k-reordering ablation results
+# run_table_k_reordering.sh — Reproduce k-reordering ablation results
 #
 # End-to-end: build → simulate (synthetic) → collect → generate summary
 # Produces: ablation_k_reordering.txt (3 configs, synthetic matrices)
 #
 # Usage:
-#   ./scripts/run_figure_k_reordering.sh [--jobs N] [--skip-build] [--output-dir DIR]
+#   ./scripts/run_table_k_reordering.sh [--jobs N] [--skip-build] [--output-dir DIR]
 # ==========================================================================
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

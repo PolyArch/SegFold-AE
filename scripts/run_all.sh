@@ -239,12 +239,10 @@ for plot_script in plot_overall.py plot_nonsquare.py plot_breakdown.py; do
         echo "  WARNING: scripts/$plot_script not found, skipping."
     fi
 done
-# Ablation mapping plot (reads CSVs from output root)
+# Ablation mapping plot
 if [ -f "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" ]; then
     echo "  Running plot_ablation_mapping.py ..."
-    python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" \
-        --mem-csv "$OUT_DIR/ablation_mapping_suitesparse_results.csv" \
-        --output "$OUT_DIR/plots/ablation_mapping.pdf"
+    python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" "$OUT_DIR"
 fi
 # Synthetic ablation plots (window size, crossbar width, k-reordering)
 if [ -f "$PROJECT_ROOT/scripts/plot_ablation.py" ]; then

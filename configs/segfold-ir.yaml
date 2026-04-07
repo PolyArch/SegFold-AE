@@ -78,7 +78,7 @@ cache_line_size: 128
 memory_backend_type: "ramulator2"
 dram_config_file: "configs/ramulator2-hbm.yaml"
 
-# L1 Cache: 1 MB (single-level, matches Spada's 1MB fiber cache)
+# L1 Cache: 1.5 MB (single-level)
 l1_size_kb: 1536
 l1_associativity: 16
 l1_line_size: 128

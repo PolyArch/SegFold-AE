@@ -86,9 +86,7 @@ python3 "$PROJECT_ROOT/scripts/collect_results.py" "$OUT_DIR"
 
 # ── Step 5: Generate plot ───────────────────────────────────────────────
 echo "[$(date +%T)] Generating plot..."
-python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" \
-    --mem-csv "$OUT_DIR/ablation_mapping_suitesparse_results.csv" \
-    --output "$OUT_DIR/plots/ablation_mapping.pdf"
+python3 "$PROJECT_ROOT/scripts/plot_ablation_mapping.py" "$OUT_DIR"
 
 echo ""
 echo "=========================================="
