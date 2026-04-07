@@ -134,7 +134,7 @@ module segfold_pe
   assign acc_wr_en_o   = mac_done & ~stall_c;
   assign acc_wr_row_o  = c_m_r;
   assign acc_wr_col_o  = c_n_r;
-  assign acc_wr_data_o = product;
+  assign acc_wr_data_o = c_val_r;
 
   // =========================================================================
   // SPAD store request

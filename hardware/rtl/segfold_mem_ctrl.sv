@@ -125,7 +125,7 @@ module segfold_mem_ctrl
     target_col   = '0;
     target_valid = 1'b0;
 
-    if (sel_win_found && (sel_row[ROW_IDX_W-1:0] < NUM_ROWS[ROW_IDX_W-1:0])) begin
+    if (sel_win_found && (sel_row < NUM_ROWS)) begin
       for (int j = 0; j < NUM_COLS; j++) begin
         if ((sw_status_flat_i[target_row][j] == 2'b00) && !target_valid) begin
           target_col   = COL_IDX_W'(j);

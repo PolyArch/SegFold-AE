@@ -4,18 +4,18 @@ Report : power
         -hier
         -analysis_effort low
 Design : segfold_intersect_rom
-Version: O-2018.06-SP1
-Date   : Wed Feb 18 12:26:58 2026
+Version: Y-2026.03
+Date   : Wed Apr  1 16:50:28 2026
 ****************************************
 
 
 Library(s) Used:
 
-    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
-    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_TT_nldm (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/NLDM/asap7sc7p5t_INVBUF_RVT_TT_nldm.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
 
 
 Operating Conditions: PVT_0P7V_25C   Library: asap7sc7p5t_AO_RVT_TT_ccs_211120
@@ -35,5 +35,5 @@ Power-specific unit information :
                                        Switch   Int      Leak     Total
 Hierarchy                              Power    Power    Power    Power    %
 --------------------------------------------------------------------------------
-segfold_intersect_rom                     0.123    4.869 1.65e+06    4.994 100.0
+segfold_intersect_rom                     0.124    5.004 1.29e+06    5.129 100.0
 1

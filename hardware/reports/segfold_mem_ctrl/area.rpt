@@ -2,46 +2,35 @@
 ****************************************
 Report : area
 Design : segfold_mem_ctrl
-Version: O-2018.06-SP1
-Date   : Wed Feb 18 12:13:27 2026
+Version: Y-2026.03
+Date   : Wed Apr  1 16:03:31 2026
 ****************************************
 
+Information: Updating design information... (UID-85)
+Warning: Design 'segfold_mem_ctrl' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
 Library(s) Used:
 
-    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
-    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_TT_nldm (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/NLDM/asap7sc7p5t_INVBUF_RVT_TT_nldm.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
 
 Number of ports:                        15211
-Number of nets:                          1385
-Number of cells:                         1364
-Number of combinational cells:           1001
-Number of sequential cells:               363
+Number of nets:                         21749
+Number of cells:                        21142
+Number of combinational cells:          19883
+Number of sequential cells:              1259
 Number of macros/black boxes:               0
-Number of buf/inv:                        171
-Number of references:                      35
+Number of buf/inv:                       1375
+Number of references:                      69
 
-Combinational area:                 75.903481
-Buf/Inv area:                        7.654500
-Noncombinational area:             105.850796
+Combinational area:               1236.267371
+Buf/Inv area:                       78.367500
+Noncombinational area:             367.124386
 Macro/Black Box area:                0.000000
 Net Interconnect area:      undefined  (No wire load specified)
 
-Total cell area:                   181.754277
+Total cell area:                  1603.391757
 Total area:                 undefined
-
-Hierarchical area distribution
-------------------------------
-
-                                  Global cell area          Local cell area
-                                  ------------------  --------------------------- 
-Hierarchical cell                 Absolute   Percent  Combi-    Noncombi-  Black-
-                                  Total      Total    national  national   boxes   Design
---------------------------------  ---------  -------  --------  ---------  ------  ---------
-segfold_mem_ctrl                   181.7543    100.0   75.9035   105.8508  0.0000  segfold_mem_ctrl
---------------------------------  ---------  -------  --------  ---------  ------  ---------
-Total                                                  75.9035   105.8508  0.0000
-
 1

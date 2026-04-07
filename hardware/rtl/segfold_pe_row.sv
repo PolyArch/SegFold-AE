@@ -210,7 +210,7 @@ module segfold_pe_row
         .c_valid_o        (pe_c_valid_o[gj])
       );
 
-      assign pe_is_idle = ~pe_active_o[gj] & pe_fifo_empty;
+      assign pe_is_idle = ~pe_active_o[gj];
     end
   endgenerate
 

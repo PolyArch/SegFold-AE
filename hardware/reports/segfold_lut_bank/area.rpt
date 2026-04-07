@@ -2,46 +2,34 @@
 ****************************************
 Report : area
 Design : segfold_lut_bank
-Version: O-2018.06-SP1
-Date   : Wed Feb 18 12:44:58 2026
+Version: Y-2026.03
+Date   : Wed Apr  1 16:18:08 2026
 ****************************************
 
+Information: Updating design information... (UID-85)
 Library(s) Used:
 
-    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_INVBUF_RVT_SS_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_INVBUF_RVT_SS_ccs_220122.db)
-    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
-    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/hardware/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
+    asap7sc7p5t_OA_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_OA_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_AO_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_AO_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SIMPLE_RVT_TT_ccs_211120.db)
+    asap7sc7p5t_INVBUF_RVT_TT_nldm (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/NLDM/asap7sc7p5t_INVBUF_RVT_TT_nldm.db)
+    asap7sc7p5t_SEQ_RVT_TT_ccs_220123 (File: /mnt/nas0/eda.libs/asap7/asap7sc7p5t_28/LIB/CCS/asap7sc7p5t_SEQ_RVT_TT_ccs_220123.db)
 
 Number of ports:                           46
-Number of nets:                          2072
-Number of cells:                         2031
-Number of combinational cells:           1695
+Number of nets:                          2080
+Number of cells:                         2039
+Number of combinational cells:           1703
 Number of sequential cells:               336
 Number of macros/black boxes:               0
-Number of buf/inv:                        135
-Number of references:                      29
+Number of buf/inv:                        134
+Number of references:                      21
 
-Combinational area:                146.397779
-Buf/Inv area:                        6.502680
+Combinational area:                146.295719
+Buf/Inv area:                        6.327720
 Noncombinational area:              97.977596
 Macro/Black Box area:                0.000000
 Net Interconnect area:      undefined  (No wire load specified)
 
-Total cell area:                   244.375375
+Total cell area:                   244.273315
 Total area:                 undefined
-
-Hierarchical area distribution
-------------------------------
-
-                                  Global cell area          Local cell area
-                                  ------------------  --------------------------- 
-Hierarchical cell                 Absolute   Percent  Combi-    Noncombi-  Black-
-                                  Total      Total    national  national   boxes   Design
---------------------------------  ---------  -------  --------  ---------  ------  ---------
-segfold_lut_bank                   244.3754    100.0  146.3978    97.9776  0.0000  segfold_lut_bank
---------------------------------  ---------  -------  --------  ---------  ------  ---------
-Total                                                 146.3978    97.9776  0.0000
-
 1

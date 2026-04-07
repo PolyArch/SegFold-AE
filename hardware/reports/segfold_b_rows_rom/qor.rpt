@@ -2,22 +2,22 @@
 ****************************************
 Report : qor
 Design : segfold_b_rows_rom
-Version: O-2018.06-SP1
-Date   : Wed Feb 18 12:26:41 2026
+Version: Y-2026.03
+Date   : Wed Apr  1 16:45:20 2026
 ****************************************
 
 
   Timing Path Group 'clk'
   -----------------------------------
-  Levels of Logic:              11.00
-  Critical Path Length:        398.94
-  Critical Path Slack:         101.06
+  Levels of Logic:              10.00
+  Critical Path Length:        350.78
+  Critical Path Slack:         449.22
   Critical Path Clk Period:   1000.00
   Total Negative Slack:          0.00
   No. of Violating Paths:        0.00
-  Worst Hold Violation:        -50.32
-  Total Hold Violation:    -102939.76
-  No. of Hold Violations:     2048.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
   -----------------------------------
 
 
@@ -25,12 +25,12 @@ Date   : Wed Feb 18 12:26:41 2026
   -----------------------------------
   Hierarchical Cell Count:          0
   Hierarchical Port Count:          0
-  Leaf Cell Count:               6309
-  Buf/Inv Cell Count:             441
-  Buf Cell Count:                 169
-  Inv Cell Count:                 272
+  Leaf Cell Count:               6194
+  Buf/Inv Cell Count:             323
+  Buf Cell Count:                  52
+  Inv Cell Count:                 271
   CT Buf/Inv Cell Count:            0
-  Combinational Cell Count:      4261
+  Combinational Cell Count:      4146
   Sequential Cell Count:         2048
   Macro Count:                      0
   -----------------------------------
@@ -38,44 +38,44 @@ Date   : Wed Feb 18 12:26:41 2026
 
   Area
   -----------------------------------
-  Combinational Area:      345.852184
+  Combinational Area:      338.649664
   Noncombinational Area:   597.196777
-  Buf/Inv Area:             21.753360
-  Total Buffer Area:             9.86
-  Total Inverter Area:          11.90
+  Buf/Inv Area:             14.886180
+  Total Buffer Area:             3.03
+  Total Inverter Area:          11.85
   Macro/Black Box Area:      0.000000
   Net Area:                  0.000000
   -----------------------------------
-  Cell Area:               943.048962
-  Design Area:             943.048962
+  Cell Area:               935.846442
+  Design Area:             935.846442
 
 
   Design Rules
   -----------------------------------
-  Total Number of Nets:          6336
+  Total Number of Nets:          6221
   Nets With Violations:             0
   Max Trans Violations:             0
   Max Cap Violations:               0
   -----------------------------------
 
 
-  Hostname: lizhen
+  Hostname: hexaconta
 
   Compile CPU Statistics
   -----------------------------------------
-  Resource Sharing:                    0.72
-  Logic Optimization:                  0.82
-  Mapping Optimization:                4.01
+  Resource Sharing:                    1.51
+  Logic Optimization:                  3.70
+  Mapping Optimization:               16.80
   -----------------------------------------
-  Overall Compile Time:               50.49
-  Overall Compile Wall Clock Time:    51.79
+  Overall Compile Time:              294.45
+  Overall Compile Wall Clock Time:   191.11
 
   --------------------------------------------------------------------
 
   Design  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
 
 
-  Design (Hold)  WNS: 50.32  TNS: 102941.02  Number of Violating Paths: 2048
+  Design (Hold)  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
 
   --------------------------------------------------------------------
 
