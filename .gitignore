@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .cache/
 compile_commands.json
+benchmarks/data/synthetic_square/
+benchmarks/data/suitesparse/*/*_T.mtx

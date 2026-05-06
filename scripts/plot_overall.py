@@ -38,7 +38,8 @@ MATRIX_ORDER = [
 
 # Accelerators to plot: (csv_column, label, color)
 ACCELS = [
-    ("segfold_cycles", "SegFold (Ours)", "#BBDEFB"),
+    ("segfold_ideal_cycles", "SegFold (Ideal)", "#1976D2"),
+    ("segfold_cycles", "SegFold (Ours)", "#42A5F5"),
     ("spada_cycles",   "Spada",          "#B5D99C"),
     ("flexagon_op_cycles",  "Flexagon (OP only)",   "#E57373"),
     ("flexagon_gust_cycles","Flexagon (Gust only)", "#FFD54F"),
@@ -57,6 +58,7 @@ def main():
 
     out_dir = os.path.abspath(args.output_dir)
     segfold_path = os.path.join(out_dir, "fig8_overall_results.csv")
+    ideal_path = os.path.join(out_dir, "fig8_overall_ideal_results.csv")
     baseline_path = os.path.join(PROJECT_ROOT, "data", "baselines", "overall_baselines.csv")
 
     if not os.path.exists(segfold_path):
@@ -70,8 +72,16 @@ def main():
     # Load baselines
     bl_df = pd.read_csv(baseline_path)
 
-    # Merge
+    # Merge realistic + baselines
     df = pd.merge(sf_df[["matrix", "segfold_cycles"]], bl_df, on="matrix", how="outer")
+
+    # Optional: SegFold ideal variant
+    if os.path.exists(ideal_path):
+        ideal_df = pd.read_csv(ideal_path)
+        ideal_df = ideal_df.rename(columns={"cycle": "segfold_ideal_cycles"})
+        df = pd.merge(df, ideal_df[["matrix", "segfold_ideal_cycles"]],
+                      on="matrix", how="outer")
+        print(f"  Loaded ideal SegFold from {ideal_path}")
 
     # Order matrices
     df["_order"] = df["matrix"].apply(

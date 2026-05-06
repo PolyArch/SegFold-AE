@@ -35,8 +35,10 @@ plt.rcParams.update({
     "ytick.labelsize": 18,
 })
 
-SIZE_COLORS = {256: "#1f77b4", 512: "#ff7f0e", 1024: "#2ca02c"}
+SIZE_COLORS    = {256: "#2E7D32", 512: "#E64A19", 1024: "#1976D2"}  # paper-consistent (darker variants of fig8 SegFold/Flex-OP/Spada palette)
+SIZE_MARKERS   = {256: "s", 512: "o", 1024: "^"}                    # distinct marker per size to disambiguate overlapping colors
 DENSITY_STYLES = {0.05: "-", 0.1: "--"}
+MARKERSIZE     = 15
 
 
 def collect_ablation_stats(abl_dir: Path) -> dict:
@@ -75,7 +77,7 @@ def plot_sweep(results, configs_ordered, param_values, param_labels,
     sizes = sorted(set(parse_run_id(r)[0] for r in results))
     densities = sorted(set(parse_run_id(r)[1] for r in results))
 
-    fig, ax = plt.subplots(figsize=(5.5, 4.2))
+    fig, ax = plt.subplots(figsize=(7.0, 4.2))
 
     for size in sizes:
         for da in densities:
@@ -107,9 +109,11 @@ def plot_sweep(results, configs_ordered, param_values, param_labels,
             ax.plot(x_vals, y_vals,
                     color=SIZE_COLORS.get(size, None),
                     linestyle=DENSITY_STYLES.get(da, "-"),
-                    marker="o", markersize=7,
+                    marker=SIZE_MARKERS.get(size, "o"),
+                    markersize=MARKERSIZE,
+                    alpha=0.6,
                     label=f"N={size}, d={da}",
-                    linewidth=1.8)
+                    linewidth=2.0)
 
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel("Normalized Cycles", fontsize=20)
@@ -128,8 +132,8 @@ def plot_sweep(results, configs_ordered, param_values, param_labels,
     ax.yaxis.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
     ax.set_axisbelow(True)
 
-    ax.legend(loc="upper right", framealpha=0.9, edgecolor="none",
-              ncol=1, fontsize=15, handlelength=2.2)
+    ax.legend(loc="upper right", framealpha=0.7, edgecolor="none",
+              ncol=1, fontsize=18, handlelength=2.2)
 
     fig.tight_layout(pad=0.4)
     for ext in [".pdf", ".png"]:
@@ -237,7 +241,7 @@ def main():
             values = [1, 2, 4, 8, 16]
             labels = ["1", "2", "4", "8", "16"]
             plot_sweep(results, configs, values, labels,
-                       "Speedup (norm. to BRL=4)", "B Loader Row Limit",
+                       "Speedup (norm. to BRL=4)", "Crossbar Width",
                        plots_dir, "fig12a_ablation_crossbar_width",
                        baseline_cfg="brl-4")
 

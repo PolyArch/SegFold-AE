@@ -36,7 +36,7 @@ COL_MAP = {
 }
 
 COLORS = {
-    "SegFold": "#BBDEFB",   # light blue
+    "SegFold": "#42A5F5",   # medium blue
     "Spada":   "#B5D99C",   # light green
 }
 

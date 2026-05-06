@@ -85,7 +85,7 @@ def main():
     labels_colors = [
         ("Base",               "#B5D99C"),
         ("+ SegmentBC",        "#F4A7BB"),
-        ("+ Spatial Folding",  "#BBDEFB"),
+        ("+ Spatial Folding",  "#42A5F5"),
         ("+ IPM LUT",          "#FFD54F"),
         ("+ SelectA",          "#E57373"),
     ]

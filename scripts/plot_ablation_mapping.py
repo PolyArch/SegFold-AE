@@ -30,7 +30,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STRATEGIES = [
     ("zero",    "Zero-Offset",        "#FFD54F"),
     ("ideal",   "Ideal-Network",      "#F4A7BB"),
-    ("segfold", "SegFold (Ours)",     "#BBDEFB"),
+    ("segfold", "SegFold (Ours)",     "#42A5F5"),
 ]
 
 

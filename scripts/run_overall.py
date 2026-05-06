@@ -45,15 +45,20 @@ def find_latest_stats(tmp_dir: Path) -> Path | None:
 
 def run_one(binary: Path, config: Path, matrix: str,
             matrix_dir: Path, out_dir: Path, tmp_dir: Path,
-            timeout: int) -> tuple:
-    """Run csegfold --mtx-file for one matrix. Returns (matrix, cycles, ok)."""
+            timeout: int, label: str = "") -> tuple:
+    """Run csegfold --mtx-file for one matrix. Returns (matrix, cycles, ok).
+
+    label is an optional tag (e.g. "ideal") used to disambiguate tmp dirs and
+    log lines when the same matrix is run with multiple configs.
+    """
     mtx_path = matrix_dir / matrix / f"{matrix}.mtx"
     if not mtx_path.exists():
         print(f"  [MISS] {matrix}: {mtx_path} not found")
         return (matrix, -1, False)
 
     # Use per-matrix tmp dir to avoid file conflicts when running in parallel
-    mat_tmp_dir = tmp_dir / matrix
+    tag = f"{matrix}_{label}" if label else matrix
+    mat_tmp_dir = tmp_dir / tag
     mat_tmp_dir.mkdir(parents=True, exist_ok=True)
 
     cmd = [
@@ -70,8 +75,9 @@ def run_one(binary: Path, config: Path, matrix: str,
         m = CYCLE_RE.search(result.stdout)
         cycles = int(m.group(1)) if m else -1
 
+        prefix = f"{label}/" if label else ""
         if result.returncode != 0:
-            print(f"  [FAIL] {matrix}: returncode={result.returncode}")
+            print(f"  [FAIL] {prefix}{matrix}: returncode={result.returncode}")
             if result.stderr:
                 lines = result.stderr.strip().split("\n")
                 print(f"         {lines[-1][:200]}")
@@ -86,14 +92,48 @@ def run_one(binary: Path, config: Path, matrix: str,
             if config_json.exists():
                 shutil.move(str(config_json), str(out_dir / f"sim_{matrix}_config.json"))
 
-        print(f"  [OK]   {matrix}: {cycles} cycles")
+        print(f"  [OK]   {prefix}{matrix}: {cycles} cycles")
         return (matrix, cycles, True)
     except subprocess.TimeoutExpired:
-        print(f"  [TIMEOUT] {matrix}")
+        print(f"  [TIMEOUT] {label}/{matrix}" if label else f"  [TIMEOUT] {matrix}")
         return (matrix, -1, False)
     except Exception as e:
-        print(f"  [ERROR] {matrix}: {e}")
+        print(f"  [ERROR] {label}/{matrix}: {e}" if label else f"  [ERROR] {matrix}: {e}")
         return (matrix, -1, False)
+
+
+def run_variant(binary, label, config, config_ir, matrix_dir, out_root, tmp_dir,
+                jobs, timeout):
+    """Run all MATRICES under one (config, config_ir) pair, in out_root/<label>/."""
+    out_dir = out_root / label if label else out_root
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    print()
+    print(f"--- variant: {label or 'segfold'} ---")
+    print(f"  config:      {config}")
+    print(f"  config (IR): {config_ir}")
+    print(f"  output:      {out_dir}")
+
+    results = {}
+    if jobs <= 1:
+        for i, mat in enumerate(MATRICES):
+            cfg = config_ir if mat in IR_MATRICES else config
+            print(f"[{i+1}/{len(MATRICES)}] ({cfg.name})", end=" ")
+            mat, cycles, ok = run_one(binary, cfg, mat, matrix_dir, out_dir,
+                                       tmp_dir, timeout, label=label)
+            results[mat] = cycles
+    else:
+        futures = {}
+        with ThreadPoolExecutor(max_workers=jobs) as executor:
+            for mat in MATRICES:
+                cfg = config_ir if mat in IR_MATRICES else config
+                future = executor.submit(run_one, binary, cfg, mat, matrix_dir,
+                                         out_dir, tmp_dir, timeout, label)
+                futures[future] = mat
+            for future in as_completed(futures):
+                mat, cycles, ok = future.result()
+                results[mat] = cycles
+    return results
 
 
 def main():
@@ -104,6 +144,15 @@ def main():
                         default=PROJECT_ROOT / "configs" / "segfold.yaml")
     parser.add_argument("--config-ir", type=Path,
                         default=PROJECT_ROOT / "configs" / "segfold-ir.yaml")
+    parser.add_argument("--config-ideal", type=Path,
+                        default=PROJECT_ROOT / "configs" / "segfold-ideal.yaml")
+    parser.add_argument("--config-ir-ideal", type=Path,
+                        default=PROJECT_ROOT / "configs" / "segfold-ir-ideal.yaml")
+    parser.add_argument("--include-ideal", action="store_true",
+                        help="Also run the paper's ideal SegFold (per-element "
+                             "injection, no LUT, no crossbar bandwidth bound)")
+    parser.add_argument("--ideal-only", action="store_true",
+                        help="Run only the ideal variant (skip realistic)")
     parser.add_argument("--matrix-dir", type=Path,
                         default=PROJECT_ROOT / "benchmarks" / "data" / "suitesparse")
     parser.add_argument("--timeout", type=int, default=3600)
@@ -117,51 +166,45 @@ def main():
     tmp_dir = PROJECT_ROOT / "csegfold" / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    out_dir = args.output_dir / "overall"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_root = args.output_dir / "overall"
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    variants = []
+    if not args.ideal_only:
+        variants.append(("", args.config, args.config_ir))
+    if args.include_ideal or args.ideal_only:
+        variants.append(("ideal", args.config_ideal, args.config_ir_ideal))
 
     print("=" * 50)
     print("Overall Performance Experiment")
-    print(f"  matrices: {len(MATRICES)}")
-    print(f"  config:      {args.config}")
-    print(f"  config (IR): {args.config_ir}")
+    print(f"  matrices:    {len(MATRICES)}")
     print(f"  IR matrices: {sorted(IR_MATRICES)}")
-    print(f"  jobs:     {args.jobs}")
-    print(f"  output:   {out_dir}")
+    print(f"  variants:    {[v[0] or 'segfold' for v in variants]}")
+    print(f"  jobs:        {args.jobs}")
+    print(f"  output:      {out_root}")
     print("=" * 50)
 
-    results = {}
-    if args.jobs <= 1:
-        for i, mat in enumerate(MATRICES):
-            cfg = args.config_ir if mat in IR_MATRICES else args.config
-            print(f"[{i+1}/{len(MATRICES)}] ({cfg.name})", end=" ")
-            mat, cycles, ok = run_one(binary, cfg, mat,
-                                       args.matrix_dir, out_dir, tmp_dir,
-                                       args.timeout)
-            results[mat] = cycles
-    else:
-        futures = {}
-        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
-            for mat in MATRICES:
-                cfg = args.config_ir if mat in IR_MATRICES else args.config
-                future = executor.submit(run_one, binary, cfg, mat,
-                                         args.matrix_dir, out_dir, tmp_dir,
-                                         args.timeout)
-                futures[future] = mat
-            for future in as_completed(futures):
-                mat, cycles, ok = future.result()
-                results[mat] = cycles
+    all_results = {}
+    for label, cfg, cfg_ir in variants:
+        all_results[label or "segfold"] = run_variant(
+            binary, label, cfg, cfg_ir, args.matrix_dir, out_root,
+            tmp_dir, args.jobs, args.timeout,
+        )
 
     print()
     print("=" * 50)
     print("Summary")
     print("=" * 50)
-    ok = sum(1 for c in results.values() if c > 0)
-    print(f"  Succeeded: {ok}/{len(MATRICES)}")
+    labels = list(all_results.keys())
+    header = f"  {'matrix':20s}" + "".join(f" {lab:>14s}" for lab in labels)
+    print(header)
+    print("  " + "-" * (20 + 15 * len(labels)))
     for mat in MATRICES:
-        c = results.get(mat, -1)
-        status = f"{c:>10} cycles" if c > 0 else "     FAILED"
-        print(f"    {mat:20s} {status}")
+        row = f"  {mat:20s}"
+        for lab in labels:
+            c = all_results[lab].get(mat, -1)
+            row += f" {c:>14}" if c > 0 else f" {'FAIL':>14s}"
+        print(row)
 
 
 if __name__ == "__main__":
